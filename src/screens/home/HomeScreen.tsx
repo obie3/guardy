@@ -5,7 +5,6 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
-  RefreshControl,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useDatabase } from '../../context/DatabaseContext';
@@ -17,12 +16,11 @@ import { useNavigation } from '@react-navigation/native';
 const HomeScreen = () => {
   const { theme } = useTheme();
   const { getScans } = useDatabase();
-  const { syncNow, syncStatus } = useSync();
+  const { uploadData, syncStatus } = useSync();
   const navigation = useNavigation();
 
   const [scans, setScans] = useState<Scan[]>([]);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
 
   // Load scans on mount
   useEffect(() => {
@@ -42,15 +40,15 @@ const HomeScreen = () => {
     }
   };
 
-  // Handle refresh
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      await Promise.all([loadScans(), syncNow()]);
-    } finally {
-      setRefreshing(false);
-    }
-  };
+  // // Handle refresh
+  // const handleRefresh = async () => {
+  //   setRefreshing(true);
+  //   try {
+  //     await Promise.all([loadScans(), uploadData()]);
+  //   } finally {
+  //     setRefreshing(false);
+  //   }
+  // };
 
   // Format date
   const formatDate = (timestamp: number) => {
@@ -67,38 +65,56 @@ const HomeScreen = () => {
       ]}
       onPress={() => {
         navigation.navigate('Verification', {
-          qrData: item.qrData,
+          access_code: item.access_code,
           scanId: item.id,
         });
       }}
     >
       <View style={styles.scanItemContent}>
-        <View style={[styles.scanIcon, { backgroundColor: theme.colors.primary + '20' }]}>
+        <View
+          style={[
+            styles.scanIcon,
+            { backgroundColor: theme.colors.primary + '20' },
+          ]}
+        >
           <QrCode size={24} color={theme.colors.primary} />
         </View>
         <View style={styles.scanInfo}>
           <Text style={[styles.scanData, { color: theme.colors.text.primary }]}>
-            {item.qrData.length > 30 ? item.qrData.substring(0, 30) + '...' : item.qrData}
+            {item.access_code}
           </Text>
           <View style={styles.scanMeta}>
             <Clock size={12} color={theme.colors.text.tertiary} />
-            <Text style={[styles.scanTime, { color: theme.colors.text.tertiary }]}>
+            <Text
+              style={[styles.scanTime, { color: theme.colors.text.tertiary }]}
+            >
               {formatDate(item.timestamp)}
             </Text>
           </View>
         </View>
       </View>
-      <View style={[styles.syncStatus, item.synced ? styles.synced : styles.unsynced]}>
-        <View 
+      <View
+        style={[
+          styles.syncStatus,
+          item.synced ? styles.synced : styles.unsynced,
+        ]}
+      >
+        <View
           style={[
-            styles.syncDot, 
-            { backgroundColor: item.synced ? theme.colors.success : theme.colors.warning }
-          ]} 
+            styles.syncDot,
+            {
+              backgroundColor: item.synced
+                ? theme.colors.success
+                : theme.colors.warning,
+            },
+          ]}
         />
-        <Text 
+        <Text
           style={[
             styles.syncText,
-            { color: item.synced ? theme.colors.success : theme.colors.warning }
+            {
+              color: item.synced ? theme.colors.success : theme.colors.warning,
+            },
           ]}
         >
           {item.synced ? 'Synced' : 'Local'}
@@ -111,7 +127,12 @@ const HomeScreen = () => {
   // Empty state
   const renderEmptyState = () => (
     <View style={styles.emptyContainer}>
-      <View style={[styles.emptyIcon, { backgroundColor: theme.colors.background.secondary }]}>
+      <View
+        style={[
+          styles.emptyIcon,
+          { backgroundColor: theme.colors.background.secondary },
+        ]}
+      >
         <QrCode size={40} color={theme.colors.text.tertiary} />
       </View>
       <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
@@ -125,7 +146,9 @@ const HomeScreen = () => {
         onPress={() => navigation.navigate('Scanner')}
       >
         <QrCode size={20} color={theme.colors.text.inverse} />
-        <Text style={[styles.scanButtonText, { color: theme.colors.text.inverse }]}>
+        <Text
+          style={[styles.scanButtonText, { color: theme.colors.text.inverse }]}
+        >
           Scan QR Code
         </Text>
       </TouchableOpacity>
@@ -133,42 +156,43 @@ const HomeScreen = () => {
   );
 
   return (
-    <View style={[styles.container, { backgroundColor: theme.colors.background.primary }]}>
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
+    >
       <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text.primary }]}>Recent Scans</Text>
+        <Text style={[styles.title, { color: theme.colors.text.primary }]}>
+          Recent Scans
+        </Text>
         <TouchableOpacity
           style={[
             styles.syncButton,
             { backgroundColor: theme.colors.background.secondary },
           ]}
-          onPress={syncNow}
-          disabled={syncStatus.isSyncing}
+          onPress={uploadData}
+          disabled={syncStatus.isUploading}
         >
           <RefreshCw
             size={16}
             color={theme.colors.primary}
-            style={syncStatus.isSyncing ? styles.rotating : undefined}
+            style={syncStatus.isUploading ? styles.rotating : undefined}
           />
-          <Text style={[styles.syncButtonText, { color: theme.colors.primary }]}>
-            {syncStatus.isSyncing ? 'Syncing...' : 'Sync'}
+          <Text
+            style={[styles.syncButtonText, { color: theme.colors.primary }]}
+          >
+            {syncStatus.isUploading ? 'Syncing...' : 'Sync'}
           </Text>
         </TouchableOpacity>
       </View>
 
       <FlatList
-        data={scans}
+        data={[]}
         renderItem={renderScanItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={!loading ? renderEmptyState : null}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[theme.colors.primary]}
-            tintColor={theme.colors.primary}
-          />
-        }
       />
     </View>
   );

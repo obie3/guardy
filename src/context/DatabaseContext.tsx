@@ -7,16 +7,13 @@ import React, {
 } from 'react';
 import * as SQLite from 'expo-sqlite';
 import { Resident, Scan } from '../types/database';
-import { v4 as uuidv4 } from 'uuid';
 
-// Define the database context value type
 type DatabaseContextValue = {
   database: SQLite.SQLiteDatabase | null;
   saveScan: (access_code: string) => Promise<Scan>;
   getScans: () => Promise<Scan[]>;
-  deleteSyncedRecord: (id: number) => Promise<void>;
+  deleteSyncedRecord: (id: string) => Promise<void>;
   saveResident: (param: Resident) => Promise<void>;
-  // addScans: (access_code: Scan[]) => Promise<Scan[]>;
   loading: boolean;
   error: string | null;
 };
@@ -40,9 +37,10 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
         // Open the database
         const db = await SQLite.openDatabaseAsync('scanner.db');
         setDatabase(db);
+
         // Create tables if they don't exist
         db.withTransactionAsync(async () => {
-          db.execAsync(
+          await db.execAsync(
             `CREATE TABLE IF NOT EXISTS scans (
               id TEXT PRIMARY KEY,
               access_code TEXT NOT NULL,
@@ -50,6 +48,16 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
               synced INTEGER NOT NULL DEFAULT 0
             )`
           );
+
+          await db.execAsync(
+            `CREATE TABLE IF NOT EXISTS residents (
+              id TEXT PRIMARY KEY,
+              first_name TEXT NOT NULL,
+              last_name TEXT NOT NULL,
+              house_number TEXT NOT NULL
+            )`
+          );
+          saveScan('12345566');
         });
       } catch (e) {
         console.error('Error initializing database:', e);
@@ -61,21 +69,23 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     initDatabase();
   }, []);
 
+  const generateUniqueId = () => {
+    return 'id_' + Date.now();
+  };
+
   // Save a new scan to the database
   const saveScan = async (access_code: string): Promise<Scan> => {
-    if (!database) {
-      // reject(new Error('Database not initialized'));
+    if (database === null) {
       throw new Error('Database not initialized');
     }
-    const scanId = uuidv4();
+    const scanId = generateUniqueId();
     const timestamp = Date.now();
     const newScan: Scan = {
-      id: scanId,
-      accessCode: access_code,
+      id: generateUniqueId(),
+      access_code: access_code,
       timestamp,
       synced: false,
     };
-
     const result = await database.runAsync(
       'INSERT INTO scans (id, access_code, timestamp, synced) VALUES (?, ?, ?, ?)',
       [Number(scanId), access_code, timestamp, 0]
@@ -85,13 +95,11 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
   };
 
   const saveResident = async (param: Resident): Promise<void> => {
-    if (!database) {
-      // reject(new Error('Database not initialized'));
+    if (database === null) {
       throw new Error('Database not initialized');
     }
-    const scanId = uuidv4();
-
-    const result = await database.runAsync(
+    const scanId = generateUniqueId();
+    await database.runAsync(
       'INSERT INTO residents (id, first_name, last_name, house_number) VALUES (?, ?, ?, ?)',
       [Number(scanId), param.first_name, param.last_name, param.house_number]
     );
@@ -99,30 +107,31 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
 
   // Get all scans from the database
   const getScans = async (): Promise<Scan[]> => {
-    if (!database) {
+    if (database === null) {
       throw new Error('Database not initialized');
     }
 
     const result: Scan[] = await database.getAllAsync(
       'SELECT * FROM scans ORDER BY timestamp DESC'
     );
-    const scans: Scan[] = [];
 
+    const scans: Scan[] = [];
     for (let i = 0; i < result.length; i++) {
       const item = result[i];
       scans.push({
         id: item.id,
-        accessCode: item.accessCode,
+        access_code: item.access_code,
         timestamp: item.timestamp,
         synced: true,
       });
+
       // console.log(row.id, row.value, row.intValue);
     }
     return scans;
   };
 
-  const deleteSyncedRecord = async (id: number): Promise<void> => {
-    if (!database) {
+  const deleteSyncedRecord = async (id: string): Promise<void> => {
+    if (database === null) {
       throw new Error('Database not initialized');
     }
     const result = await database.runAsync(

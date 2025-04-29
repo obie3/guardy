@@ -65,13 +65,13 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
         const { error } = await supabase.from('scans').insert({
           id: scan.id,
           user_id: authState.user?.id,
-          accessCode: scan.accessCode,
+          access_code: scan.access_code,
           timestamp: new Date(scan.timestamp).toISOString(),
         });
 
         if (!error) {
           // Mark as synced in local database
-          await deleteSyncedRecord(Number(scan.id));
+          await deleteSyncedRecord(scan.id);
         } else {
           console.error('Error uploading scan:', error);
         }

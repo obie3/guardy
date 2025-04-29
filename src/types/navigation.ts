@@ -17,9 +17,9 @@ export type MainTabParamList = {
 // Scanner Stack
 export type ScannerStackParamList = {
   ScanQR: undefined;
-  Verification: { 
-    qrData: string;
-    scanId: string;
+  Verification: {
+    access_code: string;
+    scanId?: string;
   };
 };
 

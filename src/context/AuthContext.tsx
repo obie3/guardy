@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
 import { supabase } from '../services/supabase';
 import { User } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
@@ -15,22 +21,31 @@ type AuthState = {
 // Define context value type
 type AuthContextValue = {
   authState: AuthState;
-  login: (userId: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  login: (
+    userId: string
+    // password: string
+  ) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
-  register: (email: string, password: string, userId: string) => Promise<{ success: boolean; error?: string }>;
+  register: (
+    email: string,
+    password: string,
+    userId: string
+  ) => Promise<{ success: boolean; error?: string }>;
 };
 
 // Create the context
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 // Create a storage mechanism that works on both web and native
-const storage = Platform.OS === 'web' 
-  ? AsyncStorage 
-  : {
-      getItem: (key: string) => SecureStore.getItemAsync(key),
-      setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-      removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-    };
+const storage =
+  Platform.OS === 'web'
+    ? AsyncStorage
+    : {
+        getItem: (key: string) => SecureStore.getItemAsync(key),
+        setItem: (key: string, value: string) =>
+          SecureStore.setItemAsync(key, value),
+        removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+      };
 
 // Provider component
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
@@ -53,10 +68,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           return;
         }
 
-        if (data?.session) {
+        if (!data?.session) {
           setAuthState({
             authenticated: true,
-            user: data.session.user,
+            user: null, //data.session.user,
             loading: false,
           });
         } else {
@@ -94,21 +109,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // Login function
-  const login = async (userId: string, password: string) => {
+  const login = async (userId: string) => {
     try {
       // In a real app, you would use email auth, but for this example we're using userId
       // You would typically look up the email from the userId first
       const email = `${userId}@example.com`; // This is just for demonstration
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
 
-      if (error) {
-        return { success: false, error: error.message };
-      }
+      // const { data, error } = await supabase.auth.signInWithPassword({
+      //   email,
+      //   password,
+      // });
 
+      // if (error) {
+      //   return { success: false, error: error.message };
+      // }
       return { success: true };
     } catch (error) {
       console.error('Unexpected error during login:', error);

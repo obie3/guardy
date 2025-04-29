@@ -2,7 +2,7 @@
 
 export interface Scan {
   id: string;
-  accessCode: string;
+  access_code: string;
   timestamp: number;
   synced: boolean;
 }
@@ -24,7 +24,7 @@ export interface User {
 }
 
 // Type definitions for database operations
-export type SaveScanFunction = (accessCode: string) => Promise<Scan>;
+export type SaveScanFunction = (access_code: string) => Promise<Scan>;
 export type GetScansFunction = () => Promise<Scan[]>;
 export type AddScansFunction = () => Promise<Scan[]>;
 // export type GetScanByIdFunction = (id: string) => Promise<Scan | null>;

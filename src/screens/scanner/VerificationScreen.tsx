@@ -29,7 +29,7 @@ const VerificationScreen = () => {
   const { theme } = useTheme();
   const { uploadData, syncStatus } = useSync();
 
-  const { qrData } = route.params;
+  const { access_code } = route.params;
 
   // Animation values
   const opacity = useSharedValue(0);
@@ -82,7 +82,7 @@ const VerificationScreen = () => {
   // Copy QR data to clipboard
   const copyToClipboard = async () => {
     try {
-      await Clipboard.setStringAsync(qrData);
+      await Clipboard.setStringAsync(access_code);
       Alert.alert('Success', 'QR data copied to clipboard');
 
       // Haptic feedback
@@ -136,7 +136,7 @@ const VerificationScreen = () => {
           ]}
         >
           <Text style={[styles.dataText, { color: theme.colors.text.primary }]}>
-            {qrData.length > 50 ? qrData.substring(0, 50) + '...' : qrData}
+            {access_code}
           </Text>
 
           <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
