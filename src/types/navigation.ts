@@ -17,10 +17,11 @@ export type MainTabParamList = {
 // Scanner Stack
 export type ScannerStackParamList = {
   ScanQR: undefined;
-  Verification: {
-    access_code: string;
-    scanId?: string;
+  VerificationScreen: {
+    access_code?: string;
+    //scanId?: string;
   };
+  EntercodeScreen: undefined;
 };
 
 // Root Stack contains auth, main, and direct routes

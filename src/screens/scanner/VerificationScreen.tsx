@@ -1,250 +1,252 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
-import { ScannerStackParamList } from '../../types/navigation';
-import { useTheme } from '../../context/ThemeContext';
-// import { useDatabase } from '../../context/DatabaseContext';
-import { useSync } from '../../context/SyncContext';
-import { Check, Copy, Save } from 'lucide-react-native';
-import * as Clipboard from 'expo-clipboard';
-import * as Haptics from 'expo-haptics';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withSequence,
-  withDelay,
-} from 'react-native-reanimated';
-import { Platform } from 'react-native';
-import Button from '../../components/common/Button';
+import React from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  SafeAreaView,
+  StatusBar,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { RouteProp, useRoute } from '@react-navigation/native';
+import { ScannerStackParamList } from '@/src/types/navigation';
+
+// Define the navigation stack parameter list
+type RootStackParamList = {
+  ScannerScreen: undefined;
+  VerificationScreen: undefined;
+  EntercodeScreen: undefined;
+};
 
 type VerificationScreenRouteProp = RouteProp<
   ScannerStackParamList,
-  'Verification'
+  'VerificationScreen'
 >;
 
-const VerificationScreen = () => {
-  const navigation = useNavigation();
+// Define props type for the component
+type VerificationScreenProps = {
+  navigation: StackNavigationProp<RootStackParamList, 'VerificationScreen'>;
+};
+
+export const VerificationScreen: React.FC<VerificationScreenProps> = ({
+  navigation,
+}) => {
   const route = useRoute<VerificationScreenRouteProp>();
-  const { theme } = useTheme();
-  const { uploadData, syncStatus } = useSync();
 
   const { access_code } = route.params;
 
-  // Animation values
-  const opacity = useSharedValue(0);
-  const scale = useSharedValue(0.8);
-  const checkScale = useSharedValue(0);
-  const checkOpacity = useSharedValue(0);
+  const handleGoBack = (): void => {
+    navigation.goBack();
+  };
 
-  useEffect(() => {
-    // Start animations
-    opacity.value = withDelay(300, withSpring(1));
-    scale.value = withDelay(300, withSpring(1));
-
-    // Check animation
-    const animateCheck = () => {
-      checkScale.value = withSequence(withSpring(1.2), withSpring(1));
-      checkOpacity.value = withSpring(1);
-    };
-
-    // Delay check animation
-    setTimeout(() => {
-      animateCheck();
-
-      // Haptic feedback on success
-      if (Platform.OS !== 'web') {
-        Haptics.notificationAsync(
-          Haptics.NotificationFeedbackType.Success
-        ).catch(console.error);
-      }
-    }, 600);
-
-    // Try to sync
-    uploadData().catch(console.error);
-  }, []);
-
-  // Animated styles
-  const containerStyle = useAnimatedStyle(() => {
-    return {
-      opacity: opacity.value,
-      transform: [{ scale: scale.value }],
-    };
-  });
-
-  const checkIconStyle = useAnimatedStyle(() => {
-    return {
-      opacity: checkOpacity.value,
-      transform: [{ scale: checkScale.value }],
-    };
-  });
-
-  // Copy QR data to clipboard
-  const copyToClipboard = async () => {
-    try {
-      await Clipboard.setStringAsync(access_code);
-      Alert.alert('Success', 'QR data copied to clipboard');
-
-      // Haptic feedback
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(
-          console.error
-        );
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to copy to clipboard');
-    }
+  const handleViewGuestDetails = (): void => {
+    // Navigate to guest details screen
+    // navigation.navigate('GuestDetails');
+    console.log('Viewing guest details');
   };
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background.primary },
-      ]}
-    >
-      <Animated.View
-        style={[
-          styles.card,
-          containerStyle,
-          { backgroundColor: theme.colors.background.secondary },
-        ]}
-      >
-        <View
-          style={[
-            styles.iconContainer,
-            { backgroundColor: theme.colors.success + '20' },
-          ]}
-        >
-          <Animated.View style={checkIconStyle}>
-            <Check size={40} color={theme.colors.success} />
-          </Animated.View>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#ffffff" />
+
+      {/* Back Button */}
+      <TouchableOpacity style={styles.backButton} onPress={handleGoBack}>
+        <Ionicons name="arrow-back" size={24} color="#333" />
+      </TouchableOpacity>
+
+      <View style={styles.content}>
+        <Text style={styles.title}>Verify Access Token</Text>
+
+        {/* Token Display Section */}
+        <View style={styles.tokenDisplay}>
+          <Text style={styles.tokenDisplayTitle}>6-digit Token</Text>
+          <View style={styles.tokenBox}>
+            <Text style={styles.tokenText}>{access_code}</Text>
+          </View>
         </View>
 
-        <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-          Scan Successful!
-        </Text>
+        {/* Verification Result Section */}
+        <View style={styles.verificationResult}>
+          <View style={styles.validIndicator}>
+            <Ionicons name="checkmark-circle" size={24} color="#4CAF50" />
+            <Text style={styles.validText}>Valid Token</Text>
+          </View>
 
-        <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-          QR code data has been saved
-        </Text>
+          <Text style={styles.verifiedText}>Token verified successfully</Text>
 
-        <View
-          style={[
-            styles.dataContainer,
-            { backgroundColor: theme.colors.background.tertiary },
-          ]}
-        >
-          <Text style={[styles.dataText, { color: theme.colors.text.primary }]}>
-            {access_code}
-          </Text>
+          <View style={styles.divider} />
 
-          <TouchableOpacity style={styles.copyButton} onPress={copyToClipboard}>
-            <Copy size={20} color={theme.colors.primary} />
+          <View style={styles.visitorInfo}>
+            <View style={styles.infoRow}>
+              <View style={styles.infoColumn}>
+                <Text style={styles.infoLabel}>Resident</Text>
+                <Text style={styles.infoValue}>Chidinma Okafor</Text>
+                <Text style={styles.infoExtra}>House 23B</Text>
+              </View>
+
+              <View style={styles.infoColumn}>
+                <Text style={styles.infoLabel}>Guest</Text>
+                <Text style={styles.infoValue}>Guest 02</Text>
+              </View>
+            </View>
+
+            <View style={styles.divider} />
+
+            <View style={styles.timeInfo}>
+              <View style={styles.timeRow}>
+                <Text style={styles.timeLabel}>Visit Date:</Text>
+                <Text style={styles.timeValue}>01/05/2025</Text>
+              </View>
+              <View style={styles.timeRow}>
+                <Text style={styles.timeLabel}>Validity Period:</Text>
+                <Text style={styles.timeValue}>30 minutes</Text>
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.viewDetailsButton}
+            onPress={handleViewGuestDetails}
+          >
+            <Text style={styles.viewDetailsText}>View Guest Details</Text>
           </TouchableOpacity>
         </View>
-
-        <View style={styles.syncStatus}>
-          <Text
-            style={[styles.syncText, { color: theme.colors.text.tertiary }]}
-          >
-            {syncStatus.isUploading
-              ? 'Syncing data...'
-              : syncStatus.lastUploadTime
-              ? `Last synced: ${new Date(
-                  syncStatus.lastUploadTime
-                ).toLocaleTimeString()}`
-              : 'Not synced yet'}
-          </Text>
-        </View>
-
-        <View style={styles.buttonContainer}>
-          <Button
-            title="Scan Another"
-            onPress={() => navigation.goBack()}
-            variant="secondary"
-            icon={<Save size={20} color={theme.colors.primary} />}
-            style={{ flex: 1, marginRight: 8 }}
-          />
-
-          <Button
-            title="Done"
-            onPress={() => navigation.navigate('Home')}
-            style={{ flex: 1, marginLeft: 8 }}
-          />
-        </View>
-      </Animated.View>
-    </View>
+      </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+    backgroundColor: '#ffffff',
   },
-  card: {
-    width: '100%',
-    maxWidth: 350,
-    borderRadius: 20,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
-    elevation: 3,
+  backButton: {
+    padding: 16,
+    position: 'absolute',
+    top: 45,
+    left: 10,
+    zIndex: 10,
   },
-  iconContainer: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 24,
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 60,
   },
   title: {
-    fontSize: 24,
     fontFamily: 'Poppins-Bold',
-    marginBottom: 8,
-    textAlign: 'center',
+    fontSize: 28,
+    color: '#202733',
+    marginBottom: 30,
   },
-  subtitle: {
-    fontSize: 16,
-    fontFamily: 'Poppins-Regular',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  dataContainer: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 8,
+  tokenDisplay: {
     marginBottom: 20,
   },
-  dataText: {
-    flex: 1,
-    fontSize: 14,
+  tokenDisplayTitle: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 18,
+    color: '#4A4A4A',
+    marginBottom: 12,
+  },
+  tokenBox: {
+    borderWidth: 1,
+    borderColor: '#DDDDDD',
+    borderRadius: 8,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tokenText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 30,
+    color: '#202733',
+  },
+  verificationResult: {
+    backgroundColor: '#F2FFF4',
+    borderRadius: 8,
+    padding: 20,
+    marginTop: 20,
+  },
+  validIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  validText: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 18,
+    color: '#4A4A4A',
+    marginLeft: 8,
+  },
+  verifiedText: {
     fontFamily: 'Poppins-Regular',
-  },
-  copyButton: {
-    padding: 8,
-  },
-  syncStatus: {
+    fontSize: 16,
+    color: '#4CAF50',
     marginBottom: 24,
   },
-  syncText: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
+  divider: {
+    height: 1,
+    backgroundColor: '#E0E0E0',
+    marginVertical: 16,
   },
-  buttonContainer: {
-    width: '100%',
+  visitorInfo: {
+    marginBottom: 16,
+  },
+  infoRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  infoColumn: {
+    flex: 1,
+  },
+  infoLabel: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#4A4A4A',
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: '#202733',
+  },
+  infoExtra: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 14,
+    color: '#4A4A4A',
+    marginTop: 4,
+  },
+  timeInfo: {
+    marginVertical: 8,
+  },
+  timeRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  timeLabel: {
+    fontFamily: 'Poppins-SemiBold',
+    fontSize: 16,
+    color: '#4A4A4A',
+    marginRight: 8,
+  },
+  timeValue: {
+    fontFamily: 'Poppins-Regular',
+    fontSize: 16,
+    color: '#202733',
+  },
+  viewDetailsButton: {
+    backgroundColor: '#4169E1',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+
+  viewDetailsText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#FFFFFF',
   },
 });
-
-export default VerificationScreen;

@@ -15,7 +15,7 @@ import { useDatabase } from '../../context/DatabaseContext';
 import * as Haptics from 'expo-haptics';
 import { CameraView, Camera } from 'expo-camera';
 
-const ScannerScreen = () => {
+export const ScannerScreen = () => {
   const navigation = useNavigation();
   const { theme } = useTheme();
   const { saveScan } = useDatabase();
@@ -61,10 +61,10 @@ const ScannerScreen = () => {
       const scan = await saveScan(data);
 
       // Navigate to verification screen
-      // navigation.navigate('Verification', {
-      //   qrData: data,
-      //   scanId: scan.id,
-      // });
+      navigation.navigate('VerificationScreen', {
+        access_code: scan.access_code,
+        // scanId: scan.id,
+      });
 
       // Try to sync in the background
       // syncNow().catch(console.error);
@@ -135,13 +135,13 @@ const ScannerScreen = () => {
           Position QR code within the frame to scan
         </Text>
 
-        {scanned && (
+        {
           <TouchableOpacity
             style={[
               styles.scanAgainButton,
               { backgroundColor: theme.colors.primary },
             ]}
-            onPress={() => setScanned(false)}
+            onPress={() => navigation.navigate('EntercodeScreen')}
           >
             {/* <Camera size={20} color={theme.colors.text.inverse} /> */}
             <Text
@@ -150,10 +150,10 @@ const ScannerScreen = () => {
                 { color: theme.colors.text.inverse },
               ]}
             >
-              Tap to Scan Again
+              Enter Access Code
             </Text>
           </TouchableOpacity>
-        )}
+        }
       </View>
     </View>
   );
@@ -218,5 +218,3 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-
-export default ScannerScreen;
