@@ -4,9 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Supabase configuration
 const supabaseUrl = 'https://xmgfrxudhlcxmhkbbmns.supabase.co';
-const supabaseAnonKey =
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InhtZ2ZyeHVkaGxjeG1oa2JibW5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ4OTMxMzIsImV4cCI6MjA2MDQ2OTEzMn0.eqM3-M03WfEcwOMxl0g2Hs9GBefoay25U9C37ZiiuXM';
-
+const supabaseAnonKey = '';
 // Create a custom storage implementation for React Native
 const createCustomStorage = () => {
   return {
