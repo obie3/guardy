@@ -7,7 +7,10 @@ import {
   Switch,
   ScrollView,
   Alert,
+  Platform,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSync } from '../../context/SyncContext';
@@ -28,7 +31,31 @@ const SettingsScreen = () => {
           text: 'Unregister',
           style: 'destructive',
           onPress: async () => {
-            await registerDevice('');
+            try {
+              // For web or native, we need to remove the device_code from storage
+              if (Platform.OS === 'web') {
+                await AsyncStorage.removeItem('device_code');
+              } else {
+                await SecureStore.deleteItemAsync('device_code');
+              }
+              
+              // Call registerDevice with empty string to update auth state
+              await registerDevice('');
+              
+              // Show success message
+              Alert.alert(
+                'Device Unregistered',
+                'This device has been successfully unregistered.',
+                [{ text: 'OK' }]
+              );
+            } catch (error) {
+              console.error('Error unregistering device:', error);
+              Alert.alert(
+                'Error',
+                'Failed to unregister device. Please try again.',
+                [{ text: 'OK' }]
+              );
+            }
           },
         },
       ]

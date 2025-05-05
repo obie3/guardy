@@ -10,7 +10,7 @@ const Stack = createStackNavigator<RootStackParamList>();
 
 const RootNavigator = () => {
   const { authState } = useAuth();
-
+  
   // Show loading screen while checking auth status
   if (authState.loading) {
     return <LoadingScreen />;
@@ -18,14 +18,15 @@ const RootNavigator = () => {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {!authState.deviceRegistered ? (
-        // Show device registration if device is not registered
+      {!authState.deviceRegistered || authState.showSuccessScreen ? (
+        // Show auth navigator if device is not registered OR if we need to show the success screen
         <Stack.Screen 
           name="Auth" 
           component={AuthNavigator} 
           initialParams={{ screen: 'DeviceRegistration' }} 
         />
       ) : (
+        // Only show main app when device is registered AND success screen has been dismissed
         <Stack.Screen name="Main" component={MainTabNavigator} />
       )}
     </Stack.Navigator>

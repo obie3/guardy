@@ -35,10 +35,17 @@ export interface LogEntry {
   timestamp: number;
 }
 
+export interface AuthDevice {
+  id: string;
+  device_code: string;
+  name?: string;
+  // location?: string;
+  status: string;
+  created_at?: string;
+  last_synced_at?: string;
+}
+
 // Type definitions for database operations
 export type SaveScanFunction = (access_code: string) => Promise<Scan>;
 export type GetScansFunction = () => Promise<Scan[]>;
 export type AddScansFunction = () => Promise<Scan[]>;
-// export type GetScanByIdFunction = (id: string) => Promise<Scan | null>;
-// export type GetUnsyncedFunction = () => Promise<Scan[]>;
-// export type MarkAsSyncedFunction = (id: string) => Promise<void>;

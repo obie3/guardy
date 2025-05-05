@@ -6,7 +6,7 @@ import HomeScreen from '../screens/home/HomeScreen';
 import LogsScreen from '../screens/logs/LogsScreen';
 import SettingsScreen from '../screens/settings/SettingsScreen';
 import { MainTabParamList, ScannerStackParamList } from '../types/navigation';
-import { Chrome as Home, ClipboardList, Settings, Scan } from 'lucide-react-native';
+import { Chrome as Home, ClipboardList, Settings, Scan, VerifiedIcon, CheckCheckIcon, DoorOpen, DoorClosedIcon } from 'lucide-react-native';
 import { ScannerScreen } from '../screens/scanner/ScannerScreen';
 import { EntercodeScreen } from '../screens/scanner/EntercodeScreen';
 import { VerificationScreen } from '../screens/scanner/VerificationScreen';
@@ -72,7 +72,7 @@ const MainTabNavigator = () => {
         name="Scanner"
         component={ScannerStackScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <Scan size={size} color={color} />,
+          tabBarIcon: ({ color, size }) => <DoorClosedIcon size={size} color={color} />,
           headerShown: false,
         }}
       />
