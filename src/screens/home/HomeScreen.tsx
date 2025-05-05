@@ -51,10 +51,10 @@ const HomeScreen = () => {
         <View style={styles.header}>
           <View style={styles.welcomeSection}>
             <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }]}>
-              Welcome to Guardy
+              Guardy
             </Text>
             <Text style={[styles.welcomeSubtitle, { color: theme.colors.text.secondary }]}>
-              Your security verification partner
+              Guest Verification Terminal
             </Text>
           </View>
         </View>
