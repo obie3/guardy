@@ -16,7 +16,7 @@ import { User, LogOut, Moon, RefreshCw, ChevronRight, Bell, Shield, CircleHelp a
 const ProfileScreen = () => {
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const { authState, logout } = useAuth();
-  const { syncNow, syncStatus } = useSync();
+  const { uploadData, syncStatus } = useSync();
 
   const handleLogout = async () => {
     Alert.alert(
@@ -49,7 +49,7 @@ const ProfileScreen = () => {
             {authState.user?.user_metadata?.user_id || 'User'}
           </Text>
           <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>
-            {authState.user?.email || 'No email provided'}
+            {authState.user?.email || 'Terminal ID'}
           </Text>
         </View>
       </View>
@@ -62,8 +62,8 @@ const ProfileScreen = () => {
         <View style={[styles.card, { backgroundColor: theme.colors.background.secondary }]}>
           <TouchableOpacity 
             style={styles.settingRow}
-            onPress={syncNow}
-            disabled={syncStatus.isSyncing}
+            onPress={uploadData}
+            disabled={syncStatus.isUploading}
           >
             <View style={styles.settingLeft}>
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -74,10 +74,10 @@ const ProfileScreen = () => {
                   Sync Data
                 </Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.text.tertiary }]}>
-                  {syncStatus.isSyncing
+                  {syncStatus.isUploading
                     ? 'Syncing...'
-                    : syncStatus.lastSyncTime
-                    ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}`
+                    : syncStatus.lastUploadTime
+                    ? `Last sync: ${new Date(syncStatus.lastUploadTime ).toLocaleTimeString()}`
                     : 'Sync your local data with the cloud'}
                 </Text>
               </View>
@@ -109,24 +109,17 @@ const ProfileScreen = () => {
             />
           </View>
           
-          <View style={styles.divider} />
+          {/* <View style={styles.divider} />
           
           <TouchableOpacity style={styles.settingRow}>
             <View style={styles.settingLeft}>
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.warning + '20' }]}>
                 <Bell size={20} color={theme.colors.warning} />
               </View>
-              <View>
-                <Text style={[styles.settingTitle, { color: theme.colors.text.primary }]}>
-                  Notifications
-                </Text>
-                <Text style={[styles.settingDescription, { color: theme.colors.text.tertiary }]}>
-                  Manage notification settings
-                </Text>
-              </View>
+              
             </View>
             <ChevronRight size={20} color={theme.colors.text.tertiary} />
-          </TouchableOpacity>
+          </TouchableOpacity> */}
         </View>
       </View>
 
