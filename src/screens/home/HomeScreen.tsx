@@ -10,14 +10,22 @@ import { useTheme } from '../../context/ThemeContext';
 import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
 import { QrCode, Keyboard, RefreshCw } from 'lucide-react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { MainTabParamList, RootStackParamList } from '../../types/navigation';
 import Button from '../../components/common/Button';
+
+type HomeScreenNavigationProp = CompositeNavigationProp<
+  BottomTabNavigationProp<MainTabParamList, 'Home'>,
+  StackNavigationProp<RootStackParamList>
+>;
 
 const HomeScreen = () => {
   const { theme } = useTheme();
   const { uploadData, syncStatus } = useSync();
   const { authState } = useAuth();
-  const navigation = useNavigation();
+  const navigation = useNavigation<HomeScreenNavigationProp>();
 
   // Format date
   const formatDate = (timestamp: number) => {
@@ -85,14 +93,18 @@ const HomeScreen = () => {
         <View style={styles.buttonsContainer}>
           <Button
             title="Scan QR Code"
-            onPress={() => navigation.navigate('Scanner', { screen: 'ScanQR' })}
+            onPress={() => {
+              navigation.jumpTo('Scanner', { screen: 'ScanQR' });
+            }}
             icon={<QrCode size={24} color={theme.colors.text.inverse} />}
             style={styles.actionButton}
           />
           
           <Button
             title="Enter Access Code"
-            onPress={() => navigation.navigate('Scanner', { screen: 'EntercodeScreen' })}
+            onPress={() => {
+              navigation.jumpTo('Scanner', { screen: 'EntercodeScreen' });
+            }}
             variant="secondary"
             icon={<Keyboard size={24} color={theme.colors.primary} />}
             style={styles.actionButton}

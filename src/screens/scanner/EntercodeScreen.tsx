@@ -10,19 +10,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
+import { CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
 
-// Define the navigation stack parameter list
-type RootStackParamList = {
-  ScannerScreen: undefined;
-  EntercodeScreen: undefined;
-  VerificationScreen: {
-    access_code: string;
-  };
-};
+type EntercodeScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<ScannerStackParamList, 'EntercodeScreen'>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
-// Define props type for the component
 type EnterAccessTokenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'EntercodeScreen'>;
+  navigation: EntercodeScreenNavigationProp;
 };
 
 export const EntercodeScreen: React.FC<EnterAccessTokenProps> = ({
@@ -36,12 +34,9 @@ export const EntercodeScreen: React.FC<EnterAccessTokenProps> = ({
   };
 
   const handleVerifyToken = (): void => {
-    // Implement token verification logic here
-    console.log('Verifying token:', token);
-    // You could navigate to a success screen or show verification result
+    // Navigate to verification screen
     navigation.navigate('VerificationScreen', {
       access_code: token,
-      // scanId: scan.id,
     });
   };
 

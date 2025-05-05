@@ -5,7 +5,6 @@ import MainTabNavigator from './MainTabNavigator';
 import AuthNavigator from './AuthNavigator';
 import LoadingScreen from '../screens/common/LoadingScreen';
 import { RootStackParamList } from '../types/navigation';
-import ScanNavigator from './ScanNavigator';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
@@ -27,10 +26,7 @@ const RootNavigator = () => {
           initialParams={{ screen: 'DeviceRegistration' }} 
         />
       ) : (
-        <>
-          <Stack.Screen name="Main" component={MainTabNavigator} />
-          <Stack.Screen name="Scanner" component={ScanNavigator} />
-        </>
+        <Stack.Screen name="Main" component={MainTabNavigator} />
       )}
     </Stack.Navigator>
   );

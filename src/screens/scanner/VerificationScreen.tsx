@@ -9,31 +9,28 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp, useRoute } from '@react-navigation/native';
-import { ScannerStackParamList } from '@/src/types/navigation';
+import { RouteProp, useRoute, CompositeNavigationProp } from '@react-navigation/native';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
 
-// Define the navigation stack parameter list
-type RootStackParamList = {
-  ScannerScreen: undefined;
-  VerificationScreen: undefined;
-  EntercodeScreen: undefined;
-};
+type VerificationScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<ScannerStackParamList, 'VerificationScreen'>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
 
 type VerificationScreenRouteProp = RouteProp<
   ScannerStackParamList,
   'VerificationScreen'
 >;
 
-// Define props type for the component
 type VerificationScreenProps = {
-  navigation: StackNavigationProp<RootStackParamList, 'VerificationScreen'>;
+  navigation: VerificationScreenNavigationProp;
 };
 
 export const VerificationScreen: React.FC<VerificationScreenProps> = ({
   navigation,
 }) => {
   const route = useRoute<VerificationScreenRouteProp>();
-
   const { access_code } = route.params;
 
   const handleGoBack = (): void => {
@@ -41,9 +38,13 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
   };
 
   const handleViewGuestDetails = (): void => {
-    // Navigate to guest details screen
-    // navigation.navigate('GuestDetails');
+    // Navigate to guest details screen if implemented
     console.log('Viewing guest details');
+  };
+
+  const handleDone = (): void => {
+    // Navigate back to Home tab
+    navigation.navigate('Home');
   };
 
   return (
@@ -110,6 +111,13 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
             onPress={handleViewGuestDetails}
           >
             <Text style={styles.viewDetailsText}>View Guest Details</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.doneButton}
+            onPress={handleDone}
+          >
+            <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -243,8 +251,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginTop: 8,
   },
-
   viewDetailsText: {
+    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    color: '#FFFFFF',
+  },
+  doneButton: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  doneButtonText: {
     fontFamily: 'Poppins-Medium',
     fontSize: 16,
     color: '#FFFFFF',

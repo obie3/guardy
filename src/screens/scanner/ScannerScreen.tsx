@@ -7,16 +7,23 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
+import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
 import { BarCodeScannerResult } from 'expo-barcode-scanner';
-// import { Camera } from 'lucide-react-native';
 import { useTheme } from '../../context/ThemeContext';
 import { useDatabase } from '../../context/DatabaseContext';
 import * as Haptics from 'expo-haptics';
 import { CameraView, Camera } from 'expo-camera';
 
+type ScannerScreenNavigationProp = CompositeNavigationProp<
+  StackNavigationProp<ScannerStackParamList, 'ScanQR'>,
+  BottomTabNavigationProp<MainTabParamList>
+>;
+
 export const ScannerScreen = () => {
-  const navigation = useNavigation();
+  const navigation = useNavigation<ScannerScreenNavigationProp>();
   const { theme } = useTheme();
   const { saveScan } = useDatabase();
 
@@ -63,11 +70,7 @@ export const ScannerScreen = () => {
       // Navigate to verification screen
       navigation.navigate('VerificationScreen', {
         access_code: scan.access_code,
-        // scanId: scan.id,
       });
-
-      // Try to sync in the background
-      // syncNow().catch(console.error);
     } catch (error) {
       console.error('Error saving scan:', error);
       Alert.alert('Error', 'Failed to save scan data. Please try again.');
