@@ -23,6 +23,18 @@ export interface User {
   updatedAt?: string;
 }
 
+export interface LogEntry {
+  id: string;
+  residentName: string;
+  unit: string;
+  visitDate: Date;
+  numberOfGuests: number;
+  accessCode: string;
+  validityPeriod: string;
+  status: 'pending' | 'verified' | 'expired';
+  timestamp: number;
+}
+
 // Type definitions for database operations
 export type SaveScanFunction = (access_code: string) => Promise<Scan>;
 export type GetScansFunction = () => Promise<Scan[]>;

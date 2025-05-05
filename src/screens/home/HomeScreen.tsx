@@ -1,54 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
+  ScrollView,
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { useDatabase } from '../../context/DatabaseContext';
 import { useSync } from '../../context/SyncContext';
-import { Scan } from '../../types/database';
-import { QrCode, RefreshCw, Clock, ExternalLink } from 'lucide-react-native';
+import { useAuth } from '../../context/AuthContext';
+import { QrCode, Keyboard, RefreshCw } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
+import Button from '../../components/common/Button';
 
 const HomeScreen = () => {
   const { theme } = useTheme();
-  const { getScans } = useDatabase();
   const { uploadData, syncStatus } = useSync();
+  const { authState } = useAuth();
   const navigation = useNavigation();
-
-  const [scans, setScans] = useState<Scan[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  // Load scans on mount
-  useEffect(() => {
-    loadScans();
-  }, []);
-
-  // Load scans from database
-  const loadScans = async () => {
-    try {
-      setLoading(true);
-      const data = await getScans();
-      setScans(data);
-    } catch (error) {
-      console.error('Error loading scans:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // // Handle refresh
-  // const handleRefresh = async () => {
-  //   setRefreshing(true);
-  //   try {
-  //     await Promise.all([loadScans(), uploadData()]);
-  //   } finally {
-  //     setRefreshing(false);
-  //   }
-  // };
 
   // Format date
   const formatDate = (timestamp: number) => {
@@ -56,121 +25,34 @@ const HomeScreen = () => {
     return date.toLocaleString();
   };
 
-  // Render scan item
-  const renderScanItem = ({ item }: { item: Scan }) => (
-    <TouchableOpacity
-      style={[
-        styles.scanItem,
-        { backgroundColor: theme.colors.background.secondary },
-      ]}
-      onPress={() => {
-        navigation.navigate('Verification', {
-          access_code: item.access_code,
-          scanId: item.id,
-        });
-      }}
-    >
-      <View style={styles.scanItemContent}>
-        <View
-          style={[
-            styles.scanIcon,
-            { backgroundColor: theme.colors.primary + '20' },
-          ]}
-        >
-          <QrCode size={24} color={theme.colors.primary} />
-        </View>
-        <View style={styles.scanInfo}>
-          <Text style={[styles.scanData, { color: theme.colors.text.primary }]}>
-            {item.access_code}
-          </Text>
-          <View style={styles.scanMeta}>
-            <Clock size={12} color={theme.colors.text.tertiary} />
-            <Text
-              style={[styles.scanTime, { color: theme.colors.text.tertiary }]}
-            >
-              {formatDate(item.timestamp)}
-            </Text>
-          </View>
-        </View>
-      </View>
-      <View
-        style={[
-          styles.syncStatus,
-          item.synced ? styles.synced : styles.unsynced,
-        ]}
-      >
-        <View
-          style={[
-            styles.syncDot,
-            {
-              backgroundColor: item.synced
-                ? theme.colors.success
-                : theme.colors.warning,
-            },
-          ]}
-        />
-        <Text
-          style={[
-            styles.syncText,
-            {
-              color: item.synced ? theme.colors.success : theme.colors.warning,
-            },
-          ]}
-        >
-          {item.synced ? 'Synced' : 'Local'}
-        </Text>
-      </View>
-      <ExternalLink size={18} color={theme.colors.text.tertiary} />
-    </TouchableOpacity>
-  );
-
-  // Empty state
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <View
-        style={[
-          styles.emptyIcon,
-          { backgroundColor: theme.colors.background.secondary },
-        ]}
-      >
-        <QrCode size={40} color={theme.colors.text.tertiary} />
-      </View>
-      <Text style={[styles.emptyTitle, { color: theme.colors.text.primary }]}>
-        No Scans Yet
-      </Text>
-      <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
-        Tap the Scanner tab to scan a QR code
-      </Text>
-      <TouchableOpacity
-        style={[styles.scanButton, { backgroundColor: theme.colors.primary }]}
-        onPress={() => navigation.navigate('Scanner')}
-      >
-        <QrCode size={20} color={theme.colors.text.inverse} />
-        <Text
-          style={[styles.scanButtonText, { color: theme.colors.text.inverse }]}
-        >
-          Scan QR Code
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
-
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: theme.colors.background.primary },
-      ]}
+    <ScrollView
+      style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+      contentContainerStyle={styles.scrollContent}
     >
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: theme.colors.text.primary }]}>
-          Recent Scans
+      {/* Welcome Section */}
+      <View style={styles.welcomeSection}>
+        <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }]}>
+          Welcome to Guardy
         </Text>
+        <Text style={[styles.welcomeSubtitle, { color: theme.colors.text.secondary }]}>
+          Scan QR codes or enter access codes to verify guests
+        </Text>
+      </View>
+
+      {/* Device Info Card */}
+      <View style={[styles.card, { backgroundColor: theme.colors.background.secondary }]}>
+        <View style={styles.deviceInfo}>
+          <Text style={[styles.deviceLabel, { color: theme.colors.text.secondary }]}>
+            Device ID
+          </Text>
+          <Text style={[styles.deviceId, { color: theme.colors.text.primary }]}>
+            {authState.deviceCode || 'Not registered'}
+          </Text>
+        </View>
+        
         <TouchableOpacity
-          style={[
-            styles.syncButton,
-            { backgroundColor: theme.colors.background.secondary },
-          ]}
+          style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
           onPress={uploadData}
           disabled={syncStatus.isUploading}
         >
@@ -179,22 +61,55 @@ const HomeScreen = () => {
             color={theme.colors.primary}
             style={syncStatus.isUploading ? styles.rotating : undefined}
           />
-          <Text
-            style={[styles.syncButtonText, { color: theme.colors.primary }]}
-          >
-            {syncStatus.isUploading ? 'Syncing...' : 'Sync'}
+          <Text style={[styles.syncButtonText, { color: theme.colors.primary }]}>
+            {syncStatus.isUploading ? 'Syncing...' : 'Sync Now'}
           </Text>
         </TouchableOpacity>
+
+        <Text style={[styles.lastSyncText, { color: theme.colors.text.tertiary }]}>
+          {syncStatus.lastUploadTime
+            ? `Last synced: ${formatDate(syncStatus.lastUploadTime)}`
+            : 'Not synced yet'}
+        </Text>
       </View>
 
-      <FlatList
-        data={[]}
-        renderItem={renderScanItem}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.listContent}
-        ListEmptyComponent={!loading ? renderEmptyState : null}
-      />
-    </View>
+      {/* Verification Actions */}
+      <View style={styles.actionsContainer}>
+        <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+          Verify Guest Access
+        </Text>
+        <Text style={[styles.sectionDescription, { color: theme.colors.text.secondary }]}>
+          Choose how you want to verify guest access codes
+        </Text>
+
+        <View style={styles.buttonsContainer}>
+          <Button
+            title="Scan QR Code"
+            onPress={() => navigation.navigate('Scanner', { screen: 'ScanQR' })}
+            icon={<QrCode size={24} color={theme.colors.text.inverse} />}
+            style={styles.actionButton}
+          />
+          
+          <Button
+            title="Enter Access Code"
+            onPress={() => navigation.navigate('Scanner', { screen: 'EntercodeScreen' })}
+            variant="secondary"
+            icon={<Keyboard size={24} color={theme.colors.primary} />}
+            style={styles.actionButton}
+          />
+        </View>
+      </View>
+
+      {/* Help Section */}
+      <View style={styles.helpSection}>
+        <Text style={[styles.helpTitle, { color: theme.colors.text.primary }]}>
+          Need Help?
+        </Text>
+        <Text style={[styles.helpText, { color: theme.colors.text.secondary }]}>
+          If you're having trouble verifying access codes or need assistance, contact support through the settings tab.
+        </Text>
+      </View>
+    </ScrollView>
   );
 };
 
@@ -202,131 +117,94 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+  scrollContent: {
+    padding: 16,
   },
-  title: {
-    fontSize: 18,
+  welcomeSection: {
+    marginVertical: 24,
+  },
+  welcomeTitle: {
+    fontSize: 28,
+    fontFamily: 'Poppins-Bold',
+    marginBottom: 8,
+  },
+  welcomeSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 24,
+  },
+  card: {
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 24,
+  },
+  deviceInfo: {
+    marginBottom: 16,
+  },
+  deviceLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    marginBottom: 4,
+  },
+  deviceId: {
+    fontSize: 20,
     fontFamily: 'Poppins-SemiBold',
   },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginBottom: 12,
   },
   syncButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     fontFamily: 'Poppins-Medium',
-    marginLeft: 4,
+    marginLeft: 8,
   },
   rotating: {
     transform: [{ rotate: '45deg' }],
   },
-  listContent: {
-    padding: 16,
-    flexGrow: 1,
-  },
-  scanItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginBottom: 12,
-  },
-  scanItemContent: {
-    flexDirection: 'row',
-    flex: 1,
-    alignItems: 'center',
-  },
-  scanIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  scanInfo: {
-    flex: 1,
-  },
-  scanData: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    marginBottom: 4,
-  },
-  scanMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  scanTime: {
+  lastSyncText: {
     fontSize: 12,
     fontFamily: 'Poppins-Regular',
-    marginLeft: 4,
+    textAlign: 'center',
   },
-  syncStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginRight: 12,
+  actionsContainer: {
+    marginBottom: 24,
   },
-  synced: {},
-  unsynced: {},
-  syncDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 4,
-  },
-  syncText: {
-    fontSize: 10,
-    fontFamily: 'Poppins-Medium',
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 32,
-    paddingVertical: 64,
-  },
-  emptyIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  emptyTitle: {
+  sectionTitle: {
     fontSize: 20,
     fontFamily: 'Poppins-Bold',
     marginBottom: 8,
-    textAlign: 'center',
   },
-  emptyText: {
+  sectionDescription: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
-    textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  scanButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
+  buttonsContainer: {
+    gap: 12,
   },
-  scanButtonText: {
+  actionButton: {
+    marginBottom: 12,
+  },
+  helpSection: {
+    padding: 16,
+    marginTop: 8,
+  },
+  helpTitle: {
+    fontSize: 16,
+    fontFamily: 'Poppins-SemiBold',
+    marginBottom: 8,
+  },
+  helpText: {
     fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    marginLeft: 8,
+    fontFamily: 'Poppins-Regular',
+    lineHeight: 20,
   },
 });
 

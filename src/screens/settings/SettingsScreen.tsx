@@ -13,7 +13,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useSync } from '../../context/SyncContext';
 import { User, Moon, RefreshCw, ChevronRight, Bell, Shield, CircleHelp as HelpCircle, Smartphone } from 'lucide-react-native';
 
-const ProfileScreen = () => {
+const SettingsScreen = () => {
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const { authState, registerDevice } = useAuth();
   const { uploadData, syncStatus } = useSync();
@@ -28,7 +28,7 @@ const ProfileScreen = () => {
           text: 'Unregister',
           style: 'destructive',
           onPress: async () => {
-            await registerDevice(''); // Reset device registration by passing empty code
+            await registerDevice('');
           },
         },
       ]
@@ -40,15 +40,15 @@ const ProfileScreen = () => {
       style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
       contentContainerStyle={styles.contentContainer}
     >
-      <View style={styles.profileHeader}>
+      <View style={styles.deviceHeader}>
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primary + '20' }]}>
           <User size={32} color={theme.colors.primary} />
         </View>
-        <View style={styles.profileInfo}>
-          <Text style={[styles.profileName, { color: theme.colors.text.primary }]}>
+        <View style={styles.deviceInfo}>
+          <Text style={[styles.deviceName, { color: theme.colors.text.primary }]}>
             {authState.deviceCode || 'No Device'}
           </Text>
-          <Text style={[styles.profileEmail, { color: theme.colors.text.secondary }]}>
+          <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
             Terminal ID
           </Text>
         </View>
@@ -146,11 +146,11 @@ const ProfileScreen = () => {
       </View>
 
       <TouchableOpacity
-        style={[styles.logoutButton, { backgroundColor: theme.colors.error + '10' }]}
+        style={[styles.unregisterButton, { backgroundColor: theme.colors.error + '10' }]}
         onPress={handleUnregisterDevice}
       >
         <Smartphone size={20} color={theme.colors.error} />
-        <Text style={[styles.logoutText, { color: theme.colors.error }]}>
+        <Text style={[styles.unregisterText, { color: theme.colors.error }]}>
           Unregister Device
         </Text>
       </TouchableOpacity>
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
-  profileHeader: {
+  deviceHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 24,
@@ -185,15 +185,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginRight: 16,
   },
-  profileInfo: {
+  deviceInfo: {
     flex: 1,
   },
-  profileName: {
+  deviceName: {
     fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
     marginBottom: 4,
   },
-  profileEmail: {
+  deviceId: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
   },
@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E5E5EA',
     marginHorizontal: 16,
   },
-  logoutButton: {
+  unregisterButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -252,7 +252,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 24,
   },
-  logoutText: {
+  unregisterText: {
     fontSize: 16,
     fontFamily: 'Poppins-SemiBold',
     marginLeft: 8,
@@ -267,4 +267,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default ProfileScreen;
+export default SettingsScreen;

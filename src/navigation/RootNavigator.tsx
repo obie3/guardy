@@ -18,10 +18,16 @@ const RootNavigator = () => {
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {authState.authenticated ? (
-        <Stack.Screen name="Main" component={MainTabNavigator} />
+      {!authState.deviceRegistered ? (
+        // Show device registration if device is not registered
+        <Stack.Screen 
+          name="Auth" 
+          component={AuthNavigator} 
+          initialParams={{ screen: 'DeviceRegistration' }} 
+        />
       ) : (
-        <Stack.Screen name="Auth" component={AuthNavigator} />
+        // Show main app if device is registered
+        <Stack.Screen name="Main" component={MainTabNavigator} />
       )}
     </Stack.Navigator>
   );

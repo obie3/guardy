@@ -2,29 +2,26 @@ import { NavigatorScreenParams } from '@react-navigation/native';
 
 // Auth Stack
 export type AuthStackParamList = {
-  Login: undefined;
-  Register: undefined;
-  ForgotPassword: undefined;
+  DeviceRegistration: undefined;
 };
 
 // Main Tab Navigation
 export type MainTabParamList = {
   Home: undefined;
-  Scanner: undefined;
-  Profile: undefined;
+  Logs: undefined;
+  Settings: undefined;
 };
 
-// Scanner Stack
+// Scanner Stack (moved to Home navigation)
 export type ScannerStackParamList = {
   ScanQR: undefined;
   VerificationScreen: {
     access_code?: string;
-    //scanId?: string;
   };
   EntercodeScreen: undefined;
 };
 
-// Root Stack contains auth, main, and direct routes
+// Root Stack contains auth and main routes
 export type RootStackParamList = {
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;

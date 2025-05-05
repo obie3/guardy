@@ -2,10 +2,10 @@ import React from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useTheme } from '../context/ThemeContext';
 import HomeScreen from '../screens/home/HomeScreen';
-import ProfileScreen from '../screens/profile/ProfileScreen';
+import LogsScreen from '../screens/logs/LogsScreen';
+import SettingsScreen from '../screens/settings/SettingsScreen';
 import { MainTabParamList } from '../types/navigation';
-import { Chrome as Home, QrCode, User } from 'lucide-react-native';
-import ScanNavigator from './ScanNavigator';
+import { Chrome as Home, ClipboardList, User, Settings2Icon, Settings } from 'lucide-react-native';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -15,9 +15,8 @@ const MainTabNavigator = () => {
 
   // Helper to determine if tab bar and header should be hidden
   const getTabBarAndHeaderOptions = (route: any) => {
-    const routeName = getFocusedRouteNameFromRoute(route) ?? 'ScanQR';
-    const hide =
-      routeName === 'EntercodeScreen' || routeName === 'VerificationScreen';
+    const routeName = getFocusedRouteNameFromRoute(route) ?? '';
+    const hide = routeName === 'EntercodeScreen' || routeName === 'VerificationScreen';
     return {
       tabBarStyle: hide
         ? { display: 'none' }
@@ -69,21 +68,19 @@ const MainTabNavigator = () => {
         }}
       />
       <Tab.Screen
-        name="Scanner"
-        component={ScanNavigator}
-        options={({ route }) => ({
-          tabBarIcon: ({ color, size }) => <QrCode size={size} color={color} />,
-          headerTitle: 'Scan QR Code',
-          ...getTabBarAndHeaderOptions(route),
-        })}
-      />
-
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
+        name="Logs"
+        component={LogsScreen}
         options={{
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
-          headerTitle: 'Your Profile',
+          tabBarIcon: ({ color, size }) => <ClipboardList size={size} color={color} />,
+          headerTitle: 'Access Logs',
+        }}
+      />
+      <Tab.Screen
+        name="Settings"
+        component={SettingsScreen}
+        options={{
+          tabBarIcon: ({ color, size }) => <Settings size={size} color={color} />,
+          headerTitle: 'Settings',
         }}
       />
     </Tab.Navigator>

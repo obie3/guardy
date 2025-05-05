@@ -1,8 +1,6 @@
 import * as React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
-import LoginScreen from '../screens/auth/LoginScreen';
-import RegisterScreen from '../screens/auth/RegisterScreen';
-import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import DeviceRegistrationScreen from '../screens/auth/DeviceRegistrationScreen';
 import { AuthStackParamList } from '../types/navigation';
 import { useTheme } from '../context/ThemeContext';
 
@@ -18,9 +16,14 @@ const AuthNavigator = () => {
         cardStyle: { backgroundColor: theme.colors.background.primary },
       }}
     >
-      <Stack.Screen name="Login" component={LoginScreen} />
-      <Stack.Screen name="Register" component={RegisterScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      <Stack.Screen 
+        name="DeviceRegistration" 
+        component={DeviceRegistrationScreen}
+        options={{
+          gestureEnabled: false,
+          headerLeft: null,
+        }}
+      />
     </Stack.Navigator>
   );
 };
