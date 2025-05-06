@@ -69,7 +69,7 @@ const SettingsScreen = () => {
     >
       <View style={styles.deviceHeader}>
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primary + '20' }]}>
-          <User size={32} color={theme.colors.primary} />
+          <Smartphone size={32} color={theme.colors.primary} />
         </View>
         <View style={styles.deviceInfo}>
           <Text style={[styles.deviceName, { color: theme.colors.text.primary }]}>
@@ -105,7 +105,7 @@ const SettingsScreen = () => {
                     ? 'Syncing...'
                     : syncStatus.lastUploadTime
                     ? `Last sync: ${new Date(syncStatus.lastUploadTime ).toLocaleTimeString()}`
-                    : 'Sync your local data with the cloud'}
+                    : 'Sync device data with estate server'}
                 </Text>
               </View>
             </View>

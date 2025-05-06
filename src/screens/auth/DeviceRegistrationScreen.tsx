@@ -138,7 +138,7 @@ const DeviceRegistrationScreen = () => {
             </Text>
             
             <Text style={[styles.subtitle, { color: theme.colors.text.secondary }]}>
-              Your device has been successfully registered and is now authorized to use the app.
+              This device has been successfully registered and is now authorized to use the app.
             </Text>
             
             {authState.deviceInfo && (
@@ -173,7 +173,7 @@ const DeviceRegistrationScreen = () => {
                 {authState.deviceInfo.status && (
                   <View style={styles.deviceInfoRow}>
                     <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
-                      Location:
+                      Estate:
                     </Text>
                     <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
                       {authState.deviceInfo.status}

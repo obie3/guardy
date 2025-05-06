@@ -83,12 +83,11 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
               <View style={styles.infoColumn}>
                 <Text style={styles.infoLabel}>Resident</Text>
                 <Text style={styles.infoValue}>Chidinma Okafor</Text>
-                <Text style={styles.infoExtra}>House 23B</Text>
               </View>
 
               <View style={styles.infoColumn}>
-                <Text style={styles.infoLabel}>Guest</Text>
-                <Text style={styles.infoValue}>Guest 02</Text>
+                <Text style={styles.infoLabel}>Unit</Text>
+                <Text style={styles.infoValue}>House 23B</Text>
               </View>
             </View>
 
