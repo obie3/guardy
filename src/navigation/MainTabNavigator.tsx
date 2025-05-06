@@ -65,7 +65,7 @@ const MainTabNavigator = () => {
         component={HomeScreen}
         options={{
           tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
-          headerTitle: 'Dashboard',
+          headerShown: false,
         }}
       />
       <Tab.Screen
