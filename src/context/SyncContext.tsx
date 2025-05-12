@@ -8,15 +8,14 @@ import { Resident, Scan } from '../types/database';
 // Define context value type
 type SyncContextValue = {
   syncStatus: {
-    lastUploadTime: number | null;
-    lastDownloadTime: number | null;
-    isUploading: boolean;
-    isDownloading: boolean;
-    uploadError: string | null;
-    downloadError: string | null;
+    lastSyncTime: number | null;
+    isSyncing: boolean;
+    syncError: string | null;
+    syncProgress: number;
+    totalItems: number;
+    currentItem: number;
   };
-  uploadData: () => Promise<void>;
-  downloadResidentData: () => Promise<void>;
+  syncResidents: (estateId: string) => Promise<void>;
 };
 
 // Create the context
@@ -27,129 +26,96 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
   const { authState } = useAuth();
   const { getScans, deleteSyncedRecord, saveResident } = useDatabase();
   const [syncStatus, setSyncStatus] = useState({
-    lastUploadTime: null as number | null,
-    lastDownloadTime: null as number | null,
-    isUploading: false,
-    isDownloading: false,
-    uploadError: null as string | null,
-    downloadError: null as string | null,
+    lastSyncTime: null as number | null,
+    syncProgress: 0,
+    totalItems: 0,
+    currentItem: 0,
+    isSyncing: false,
+    syncError: null as string | null,
   });
 
-  // Upload function (previously syncNow)
-  const uploadData = async () => {
-    if (!authState.authenticated || syncStatus.isUploading) {
+  // Sync residents function
+  const syncResidents = async (estateId: string) => {
+    if (syncStatus.isSyncing) {
       return;
     }
 
+    setSyncStatus((prev) => ({
+      ...prev,
+      isSyncing: true,
+      syncError: null,
+      syncProgress: 0,
+      currentItem: 0,
+      totalItems: 0,
+    }));
+
     try {
-      setSyncStatus((prev) => ({
-        ...prev,
-        isUploading: true,
-        uploadError: null,
-      }));
+      // Fetch residents from Supabase using the complex query
+      console.log('Fetching residents from Supabase for estateId:', estateId);  
 
-      // Get unsynced scans
-      const unsynced = await getScans();
-
-      if (unsynced.length === 0) {
-        setSyncStatus((prev) => ({
-          ...prev,
-          isUploading: false,
-          lastUploadTime: Date.now(),
-        }));
-        return;
-      }
-
-      // Upload each scan
-      for (const scan of unsynced) {
-        const { error } = await supabase.from('scans').insert({
-          id: scan.id,
-          user_id: authState.user?.id,
-          access_code: scan.access_code,
-          timestamp: new Date(scan.timestamp).toISOString(),
+      const { data: residents, error } = await supabase
+        .rpc('get_estate_residents', {
+          device_id: estateId
         });
 
-        if (!error) {
-          // Mark as synced in local database
-          await deleteSyncedRecord(scan.id);
-        } else {
-          console.error('Error uploading scan:', error);
+      console.log('Residents fetched:', residents);
+
+      if (error) throw error;
+
+      if (!residents) {
+        throw new Error('No residents data received');
+      }
+
+      setSyncStatus((prev) => ({
+        ...prev,
+        totalItems: residents.length,
+      }));
+
+      // Process each resident
+      for (let i = 0; i < residents.length; i++) {
+        const resident = residents[i];
+
+        try {
+          await saveResident({
+            full_name: resident.full_name,
+            phone_number: resident.phone_number,
+            secret: resident.secret,
+            assigned_units: resident.assigned_units,
+            synced: true,
+            last_sync: Date.now(),
+          });
+
+          setSyncStatus((prev) => ({
+            ...prev,
+            currentItem: i + 1,
+            syncProgress: ((i + 1) / residents.length) * 100,
+          }));
+        } catch (err) {
+          console.error(`Error saving resident ${resident.id}:`, err);
         }
       }
 
       setSyncStatus((prev) => ({
         ...prev,
-        isUploading: false,
-        lastUploadTime: Date.now(),
-        uploadError: null,
+        isSyncing: false,
+        lastSyncTime: Date.now(),
+        syncProgress: 100,
       }));
     } catch (error) {
-      console.error('Upload error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to sync residents';
       setSyncStatus((prev) => ({
         ...prev,
-        isUploading: false,
-        uploadError: 'Failed to upload data',
+        isSyncing: false,
+        syncError: errorMessage,
       }));
-    }
-  };
-
-  // Download function (new)
-  const downloadResidentData = async () => {
-    if (!authState.authenticated || syncStatus.isDownloading) {
-      return;
-    }
-
-    try {
-      setSyncStatus((prev) => ({
-        ...prev,
-        isDownloading: true,
-        downloadError: null,
-      }));
-
-      // Fetch scans from Supabase
-      const { data, error } = await supabase
-        .from('scans')
-        .select('*')
-        .eq('user_id', authState.user?.id);
-
-      if (error) {
-        throw error;
-      }
-
-      if (data && data.length > 0) {
-        // Transform to local scan format
-        data.map(async (item) => {
-          let resident: Resident = {
-            first_name: item.firstname,
-            last_name: item.lastname,
-            street_name: item.streetName,
-            house_number: item.houseNumber,
-          };
-          await saveResident(resident);
-        });
-      }
-
-      setSyncStatus((prev) => ({
-        ...prev,
-        isDownloading: false,
-        lastDownloadTime: Date.now(),
-        downloadError: null,
-      }));
-    } catch (error) {
-      console.error('Download error:', error);
-      setSyncStatus((prev) => ({
-        ...prev,
-        isDownloading: false,
-        downloadError: 'Failed to download data',
-      }));
+      throw error;
     }
   };
 
   // Context value
   const value: SyncContextValue = {
     syncStatus,
-    uploadData,
-    downloadResidentData,
+    syncResidents,
   };
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

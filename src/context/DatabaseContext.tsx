@@ -36,6 +36,44 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
         setLoading(true);
         // Open the database
         const db = await SQLite.openDatabaseAsync('scanner.db');
+        
+        // Handle schema migrations
+        await db.withTransactionAsync(async () => {
+          // Create version table if it doesn't exist
+          await db.execAsync(
+            `CREATE TABLE IF NOT EXISTS db_version (
+              version INTEGER PRIMARY KEY
+            )`
+          );
+          
+          // Get current version
+          const result = await db.getFirstAsync<{ version: number }>(
+            'SELECT version FROM db_version ORDER BY version DESC LIMIT 1'
+          );
+          const currentVersion = result?.version || 0;
+          
+          if (currentVersion < 1) {
+            // Drop old tables
+            await db.execAsync('DROP TABLE IF EXISTS residents');
+            
+            // Create new schema
+            await db.execAsync(
+              `CREATE TABLE residents (
+                id TEXT PRIMARY KEY,
+                full_name TEXT NOT NULL,
+                phone_number TEXT NOT NULL,
+                secret TEXT NOT NULL,
+                assigned_units TEXT NOT NULL,
+                synced INTEGER NOT NULL DEFAULT 0,
+                last_sync INTEGER
+              )`
+            );
+            
+            // Update version
+            await db.execAsync('INSERT INTO db_version (version) VALUES (1)');
+          }
+        });
+        
         setDatabase(db);
 
         // Create tables if they don't exist
@@ -52,9 +90,12 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
           await db.execAsync(
             `CREATE TABLE IF NOT EXISTS residents (
               id TEXT PRIMARY KEY,
-              first_name TEXT NOT NULL,
-              last_name TEXT NOT NULL,
-              house_number TEXT NOT NULL
+              full_name TEXT NOT NULL,
+              phone_number TEXT NOT NULL,
+              secret TEXT NOT NULL,
+              assigned_units TEXT NOT NULL,
+              synced INTEGER NOT NULL DEFAULT 0,
+              last_sync INTEGER
             )`
           );
           saveScan('12345566');
@@ -98,10 +139,10 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     if (database === null) {
       throw new Error('Database not initialized');
     }
-    const scanId = generateUniqueId();
+    const residentId = generateUniqueId();
     await database.runAsync(
-      'INSERT INTO residents (id, first_name, last_name, house_number) VALUES (?, ?, ?, ?)',
-      [Number(scanId), param.first_name, param.last_name, param.house_number]
+      'INSERT INTO residents (id, full_name, phone_number, secret, assigned_units, synced, last_sync) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [residentId, param.full_name, param.phone_number, param.secret, param.assigned_units, param.synced ? 1 : 0, param.last_sync]
     );
   };
 

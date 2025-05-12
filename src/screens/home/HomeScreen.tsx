@@ -13,6 +13,7 @@ import { useTheme } from '../../context/ThemeContext';
 import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
 import { QrCode, Keyboard, RefreshCw, Info, ArrowRight } from 'lucide-react-native';
+import { SyncProgress } from '../../components/common/SyncProgress';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -27,9 +28,18 @@ const { width } = Dimensions.get('window');
 
 const HomeScreen = () => {
   const { theme, isDarkMode } = useTheme();
-  const { uploadData, syncStatus } = useSync();
+  const { syncResidents, syncStatus } = useSync();
   const { authState } = useAuth();
   const navigation = useNavigation<HomeScreenNavigationProp>();
+
+  const handleSync = async () => {
+    try {
+      // You should get the estate_id from authState or device info
+      await syncResidents(authState.deviceInfo?.id || '');
+    } catch (error) {
+      console.error('Sync error:', error);
+    }
+  };
 
   // Format date
   const formatDate = (timestamp: number) => {
@@ -57,6 +67,24 @@ const HomeScreen = () => {
               Guest Verification Terminal
             </Text>
           </View>
+
+          <TouchableOpacity
+            style={[styles.syncButton, { backgroundColor: theme.colors.primary }]}
+            onPress={handleSync}
+            disabled={syncStatus.isDownloading}
+          >
+            <RefreshCw 
+              size={20} 
+              color={theme.colors.text.inverse} 
+              style={[
+                styles.syncIcon,
+                syncStatus.isDownloading && styles.rotating
+              ]} 
+            />
+            <Text style={[styles.syncButtonText, { color: theme.colors.text.inverse }]}>
+              {syncStatus.isDownloading ? 'Syncing...' : 'Sync Data'}
+            </Text>
+          </TouchableOpacity>
         </View>
 
         {/* Main Verification Actions */}
@@ -124,10 +152,10 @@ const HomeScreen = () => {
             </View>
             
             <TouchableOpacity
-              style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
-              onPress={uploadData}
-              disabled={syncStatus.isUploading}
-            >
+                style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
+                onPress={handleSync}
+                disabled={syncStatus.isUploading}
+              >
               <RefreshCw
                 size={18}
                 color={theme.colors.primary}
@@ -165,6 +193,8 @@ const HomeScreen = () => {
           <ArrowRight size={20} color={theme.colors.text.tertiary} />
         </TouchableOpacity>
       </ScrollView>
+
+      <SyncProgress />
     </SafeAreaView>
   );
 };
@@ -177,7 +207,8 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   header: {
-    marginBottom: 24,
+    padding: 16,
+    marginBottom: 16,
   },
   welcomeSection: {
     marginVertical: 12,
@@ -271,15 +302,18 @@ const styles = StyleSheet.create({
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
     paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 8,
+    marginBottom: 16,
   },
   syncButtonText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
+    fontSize: 16,
+    fontWeight: '600',
     marginLeft: 8,
+  },
+  syncIcon: {
+    marginRight: 8,
   },
   rotating: {
     transform: [{ rotate: '45deg' }],

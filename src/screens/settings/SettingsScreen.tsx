@@ -72,12 +72,13 @@ const SettingsScreen = () => {
           <Smartphone size={32} color={theme.colors.primary} />
         </View>
         <View style={styles.deviceInfo}>
+        <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
+            Device Code
+          </Text>
           <Text style={[styles.deviceName, { color: theme.colors.text.primary }]}>
             {authState.deviceCode || 'No Device'}
           </Text>
-          <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
-            Terminal ID
-          </Text>
+        
         </View>
       </View>
 

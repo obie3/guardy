@@ -22,6 +22,8 @@ export type Theme = {
       inverse: string;
     };
     border: string;
+    white: string;
+    card: string;
   };
   spacing: {
     xs: number;
@@ -60,6 +62,10 @@ const lightTheme: Theme = {
       inverse: '#FFFFFF',
     },
     border: '#C5C5C7',
+    white: '#FFFFFF',
+    card: '#FFFFFF',
+    white: '#FFFFFF',
+    card: '#FFFFFF',
   },
   spacing: {
     xs: 4,

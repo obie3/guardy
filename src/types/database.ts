@@ -9,10 +9,12 @@ export interface Scan {
 
 export interface Resident {
   id?: string;
-  first_name: string;
-  last_name: string;
-  house_number: string;
-  street_name: string;
+  full_name: string;
+  phone_number: string;
+  secret: string;
+  assigned_units: string;
+  synced: boolean;
+  last_sync: number;
 }
 
 export interface User {
@@ -38,8 +40,8 @@ export interface LogEntry {
 export interface AuthDevice {
   id: string;
   device_code: string;
+  estate_id: string;
   name?: string;
-  // location?: string;
   status: string;
   created_at?: string;
   last_synced_at?: string;
