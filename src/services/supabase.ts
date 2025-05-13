@@ -248,3 +248,86 @@ export const verifyDeviceCode = async (deviceCode: string): Promise<{
     };
   }
 };
+
+interface SupabaseGuestResponse {
+  group_size: number;
+  guest: {
+    full_name: string;
+    phone_number: string;
+  };
+}
+
+export interface GuestInfo {
+  full_name: string;
+  phone_number: string;
+  group_size: number;
+}
+
+export const fetchGuestInformation = async (
+  access_code: string,
+  resident_id: string
+): Promise<{ success: boolean; data?: GuestInfo; error?: string }> => {
+  try {
+    console.log('Fetching guest information with:', { access_code, resident_id });
+    
+    const { data, error } = await supabase
+      .from('visitor_access_codes')
+      .select(`
+        group_size,
+        guest:guest_id (
+          full_name,
+          phone_number
+        )
+      `)
+      .eq('code', access_code)
+      .eq('resident_id', resident_id)
+      .single();
+
+    if (error) {
+      console.error('Error fetching guest information:', error);
+      return {
+        success: false,
+        error: 'Failed to fetch guest information'
+      };
+    }
+
+    console.log('Received data from Supabase:', JSON.stringify(data, null, 2));
+
+    if (!data) {
+      return {
+        success: false,
+        error: 'No data found'
+      };
+    }
+
+    const response = data as SupabaseGuestResponse;
+    if (!response.guest || typeof response.guest !== 'object') {
+      return {
+        success: false,
+        error: 'No guest information found'
+      };
+    }
+
+    if (!response.guest.full_name || !response.guest.phone_number) {
+      return {
+        success: false,
+        error: 'Incomplete guest information'
+      };
+    }
+
+    return {
+      success: true,
+      data: {
+        full_name: response.guest.full_name,
+        phone_number: response.guest.phone_number,
+        group_size: response.group_size || 1
+      }
+    };
+  } catch (error) {
+    console.error('Unexpected error fetching guest information:', error);
+    return {
+      success: false, 
+      error: 'An unexpected error occurred'
+    };
+  }
+};

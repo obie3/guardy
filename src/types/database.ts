@@ -58,6 +58,18 @@ export interface Verification {
   synced: boolean;
 }
 
+export interface SyncHistory {
+  id: string;
+  device_id: string;
+  sync_type: 'residents' | 'verifications';
+  items_synced: number;
+  status: 'success' | 'failed';
+  error_message?: string;
+  started_at: number;
+  completed_at: number;
+  created_at: number;
+}
+
 // Type definitions for database operations
 export type SaveVerificationFunction = (verification: Omit<Verification, 'id' | 'synced'>) => Promise<Verification>;
 export type GetVerificationsFunction = () => Promise<Verification[]>;

@@ -6,7 +6,7 @@ import React, {
   ReactNode,
 } from 'react';
 import * as SQLite from 'expo-sqlite';
-import { Resident, Verification, SaveVerificationFunction, GetVerificationsFunction } from '../types/database';
+import { Resident, Verification, SaveVerificationFunction, GetVerificationsFunction, SyncHistory } from '../types/database';
 
 type DatabaseContextValue = {
   database: SQLite.SQLiteDatabase | null;
@@ -17,6 +17,11 @@ type DatabaseContextValue = {
   saveResident: (param: Resident) => Promise<void>;
   loading: boolean;
   error: string | null;
+  startSync: (deviceId: string, syncType: 'residents' | 'verifications') => Promise<string>;
+  updateSync: (syncId: string, params: { itemsSynced?: number; status?: 'success' | 'failed'; errorMessage?: string; }) => Promise<void>;
+  getLatestSync: (deviceId: string, syncType: 'residents' | 'verifications') => Promise<SyncHistory | null>;
+  getSyncHistory: (deviceId: string) => Promise<SyncHistory[]>;
+  clearDatabase: () => Promise<void>;
 };
 
 // Create the context
@@ -95,6 +100,26 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
 
             // Update version
             await db.execAsync('INSERT INTO db_version (version) VALUES (2)');
+          }
+
+          // Migration to version 3: Add sync_history table
+          if (currentVersion < 3) {
+            await db.execAsync(
+              `CREATE TABLE IF NOT EXISTS sync_history (
+                id TEXT PRIMARY KEY,
+                device_id TEXT NOT NULL,
+                sync_type TEXT NOT NULL,
+                items_synced INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL,
+                error_message TEXT,
+                started_at INTEGER NOT NULL,
+                completed_at INTEGER NOT NULL,
+                created_at INTEGER NOT NULL
+              )`
+            );
+
+            // Update version
+            await db.execAsync('INSERT INTO db_version (version) VALUES (3)');
           }
         });
         
@@ -286,6 +311,132 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     );
   };
 
+  // Start a new sync operation and record it in the sync history
+  const startSync = async (deviceId: string, syncType: 'residents' | 'verifications'): Promise<string> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const syncId = generateUniqueId();
+    const now = Date.now();
+
+    await database.runAsync(
+      `INSERT INTO sync_history (
+        id,
+        device_id,
+        sync_type,
+        items_synced,
+        status,
+        started_at,
+        completed_at,
+        created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        syncId,
+        deviceId,
+        syncType,
+        0,
+        'success',
+        now,
+        now,
+        now
+      ]
+    );
+
+    return syncId;
+  };
+
+  // Update a sync operation with its results
+  const updateSync = async (
+    syncId: string,
+    params: {
+      itemsSynced?: number;
+      status?: 'success' | 'failed';
+      errorMessage?: string;
+    }
+  ): Promise<void> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const updates: string[] = [];
+    const values: any[] = [];
+
+    if (params.itemsSynced !== undefined) {
+      updates.push('items_synced = ?');
+      values.push(params.itemsSynced);
+    }
+
+    if (params.status !== undefined) {
+      updates.push('status = ?');
+      values.push(params.status);
+    }
+
+    if (params.errorMessage !== undefined) {
+      updates.push('error_message = ?');
+      values.push(params.errorMessage);
+    }
+
+    if (updates.length > 0) {
+      updates.push('completed_at = ?');
+      values.push(Date.now());
+      
+      values.push(syncId); // For WHERE clause
+
+      await database.runAsync(
+        `UPDATE sync_history 
+         SET ${updates.join(', ')}
+         WHERE id = ?`,
+        values
+      );
+    }
+  };
+
+  // Get the latest sync history for a device
+  const getLatestSync = async (deviceId: string, syncType: 'residents' | 'verifications'): Promise<SyncHistory | null> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const result = await database.getFirstAsync<SyncHistory>(
+      `SELECT * FROM sync_history 
+       WHERE device_id = ? AND sync_type = ?
+       ORDER BY created_at DESC 
+       LIMIT 1`,
+      [deviceId, syncType]
+    );
+
+    return result || null;
+  };
+
+  // Get all sync history for a device
+  const getSyncHistory = async (deviceId: string): Promise<SyncHistory[]> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    return await database.getAllAsync<SyncHistory>(
+      `SELECT * FROM sync_history 
+       WHERE device_id = ?
+       ORDER BY created_at DESC`,
+      [deviceId]
+    );
+  };
+
+  // Clear all data from database
+  const clearDatabase = async (): Promise<void> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    await database.withTransactionAsync(async () => {
+      // Delete all data from tables
+      await database.execAsync('DELETE FROM sync_history');
+      await database.execAsync('DELETE FROM verifications');
+      await database.execAsync('DELETE FROM residents');
+    });
+  };
+
   // Context value
   const value: DatabaseContextValue = {
     database,
@@ -294,6 +445,11 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     getResidents,
     saveResident,
     deleteSyncedRecord,
+    startSync,
+    updateSync,
+    getLatestSync,
+    getSyncHistory,
+    clearDatabase,
     loading,
     error,
   };

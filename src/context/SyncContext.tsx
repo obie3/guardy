@@ -1,9 +1,14 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { useAuth } from './AuthContext';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
 import { useDatabase } from './DatabaseContext';
 import { supabase } from '../services/supabase';
-import { Resident, Scan } from '../types/database';
-// import * as BackgroundFetch from 'expo-background-fetch';
+import { Resident, AuthDevice } from '../types/database';
+import NetInfo from '@react-native-community/netinfo';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+// Constants for sync configuration
+const SYNC_INTERVAL = 1000 * 60 * 15; // 15 minutes
+const SYNC_RETRY_DELAY = 1000 * 60 * 5; // 5 minutes
+const LAST_SYNC_KEY = 'last_sync_time';
 
 // Define context value type
 type SyncContextValue = {
@@ -16,6 +21,8 @@ type SyncContextValue = {
     currentItem: number;
   };
   syncResidents: (estateId: string) => Promise<void>;
+  backgroundSync: (deviceId: string) => Promise<void>;
+  forceSyncNow: (deviceId: string) => Promise<void>;
 };
 
 // Create the context
@@ -23,8 +30,7 @@ const SyncContext = createContext<SyncContextValue | undefined>(undefined);
 
 // Provider component
 export const SyncProvider = ({ children }: { children: ReactNode }) => {
-  const { authState } = useAuth();
-  const { getScans, deleteSyncedRecord, saveResident } = useDatabase();
+  const { saveResident, startSync, updateSync } = useDatabase();
   const [syncStatus, setSyncStatus] = useState({
     lastSyncTime: null as number | null,
     syncProgress: 0,
@@ -34,9 +40,58 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
     syncError: null as string | null,
   });
 
+  const syncTimeoutRef = useRef<NodeJS.Timeout>();
+  const lastDeviceIdRef = useRef<string>();
+  const networkRetryTimeoutRef = useRef<NodeJS.Timeout>();
+
+  // Load last sync time on mount
+  useEffect(() => {
+    const loadLastSyncTime = async () => {
+      try {
+        const lastSyncTime = await AsyncStorage.getItem(LAST_SYNC_KEY);
+        if (lastSyncTime) {
+          setSyncStatus(prev => ({
+            ...prev,
+            lastSyncTime: parseInt(lastSyncTime, 10)
+          }));
+        }
+      } catch (error) {
+        console.error('Error loading last sync time:', error);
+      }
+    };
+    loadLastSyncTime();
+  }, []);
+
+  // Save last sync time whenever it changes
+  useEffect(() => {
+    if (syncStatus.lastSyncTime) {
+      AsyncStorage.setItem(LAST_SYNC_KEY, syncStatus.lastSyncTime.toString())
+        .catch(error => console.error('Error saving last sync time:', error));
+    }
+  }, [syncStatus.lastSyncTime]);
+
+  // Cleanup function for sync timeouts
+  useEffect(() => {
+    return () => {
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      if (networkRetryTimeoutRef.current) {
+        clearTimeout(networkRetryTimeoutRef.current);
+      }
+    };
+  }, []);
+
   // Sync residents function
   const syncResidents = async (estateId: string) => {
     if (syncStatus.isSyncing) {
+      return;
+    }
+
+    // Check if enough time has passed since last sync
+    const now = Date.now();
+    if (syncStatus.lastSyncTime && (now - syncStatus.lastSyncTime) < SYNC_INTERVAL) {
+      console.log('Skipping sync - too soon since last sync');
       return;
     }
 
@@ -49,16 +104,27 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       totalItems: 0,
     }));
 
+    // Start sync operation in history
+    let syncId: string;
     try {
-      // Fetch residents from Supabase using the complex query
-      console.log('Fetching residents from Supabase for estateId:', estateId);  
+      syncId = await startSync(estateId, 'residents');
+    } catch (error) {
+      console.error('Failed to start sync:', error);
+      return;
+    }
 
+    try {
+      // Check network connectivity before proceeding
+      const networkState = await NetInfo.fetch();
+      if (!networkState.isConnected) {
+        throw new Error('No network connectivity');
+      }
+
+      // Fetch residents from Supabase
       const { data: residents, error } = await supabase
         .rpc('get_estate_residents', {
           device_id: estateId
         });
-
-      console.log('Residents fetched:', residents);
 
       if (error) throw error;
 
@@ -74,7 +140,6 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       // Process each resident
       for (let i = 0; i < residents.length; i++) {
         const resident = residents[i];
-
         try {
           await saveResident({
             id: resident.id,
@@ -83,7 +148,7 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
             secret: resident.secret,
             assigned_units: resident.assigned_units,
             synced: true,
-            last_sync: Date.now(),
+            last_sync: now,
           });
 
           setSyncStatus((prev) => ({
@@ -92,31 +157,116 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
             syncProgress: ((i + 1) / residents.length) * 100,
           }));
         } catch (err) {
-          console.error(`Error saving resident ${resident.id}:`, err);
+          console.error('Error saving resident:', err);
+          throw err;
         }
       }
 
+      // Update sync status on completion
+      await updateSync(syncId, { status: 'success', itemsSynced: residents.length });
       setSyncStatus((prev) => ({
         ...prev,
         isSyncing: false,
-        lastSyncTime: Date.now(),
-        syncProgress: 100,
+        lastSyncTime: now,
+        syncError: null,
       }));
+
+      // Schedule next sync
+      scheduleSyncTimeout(estateId);
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to sync residents';
+      console.error('Sync error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      if (syncId) {
+        await updateSync(syncId, { status: 'failed', errorMessage });
+      }
       setSyncStatus((prev) => ({
         ...prev,
         isSyncing: false,
         syncError: errorMessage,
       }));
-      throw error;
+
+      // Schedule retry with shorter interval on error
+      scheduleRetry(estateId);
     }
   };
+
+  // Schedule next sync
+  const scheduleSyncTimeout = (deviceId: string) => {
+    if (syncTimeoutRef.current) {
+      clearTimeout(syncTimeoutRef.current);
+    }
+    syncTimeoutRef.current = setTimeout(() => {
+      backgroundSync(deviceId);
+    }, SYNC_INTERVAL);
+  };
+
+  // Schedule retry on error
+  const scheduleRetry = (deviceId: string) => {
+    if (networkRetryTimeoutRef.current) {
+      clearTimeout(networkRetryTimeoutRef.current);
+    }
+    networkRetryTimeoutRef.current = setTimeout(() => {
+      backgroundSync(deviceId);
+    }, SYNC_RETRY_DELAY);
+  };
+
+  // Background sync function with network monitoring
+  const backgroundSync = async (deviceId: string) => {
+    try {
+      lastDeviceIdRef.current = deviceId;
+      await syncResidents(deviceId);
+    } catch (error) {
+      console.error('Background sync failed:', error);
+      scheduleRetry(deviceId);
+    }
+  };
+
+  // Force immediate sync
+  const forceSyncNow = async (deviceId: string) => {
+    try {
+      // Clear any pending sync timeouts
+      if (syncTimeoutRef.current) {
+        clearTimeout(syncTimeoutRef.current);
+      }
+      if (networkRetryTimeoutRef.current) {
+        clearTimeout(networkRetryTimeoutRef.current);
+      }
+
+      // Reset last sync time to force immediate sync
+      setSyncStatus(prev => ({
+        ...prev,
+        lastSyncTime: null
+      }));
+
+      // Perform sync
+      await syncResidents(deviceId);
+    } catch (error) {
+      console.error('Force sync failed:', error);
+    }
+  };
+
+  // Network connectivity monitoring
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      if (state.isConnected && lastDeviceIdRef.current && !syncStatus.isSyncing) {
+        // Don't sync immediately on connection, add a small delay
+        setTimeout(() => {
+          backgroundSync(lastDeviceIdRef.current!);
+        }, 5000);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [syncStatus.isSyncing]);
 
   // Context value
   const value: SyncContextValue = {
     syncStatus,
     syncResidents,
+    backgroundSync,
+    forceSyncNow,
   };
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

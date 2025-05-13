@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  ScrollView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -17,8 +18,12 @@ import { RouteProp, useRoute, CompositeNavigationProp } from '@react-navigation/
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
 import { useDatabase } from '../../context/DatabaseContext';
+import { useSync } from '../../context/SyncContext';
+import { useAuth } from '../../context/AuthContext';
 import { verifyTOTP } from '../../services/verification';
 import { VerificationResult } from '../../types/verification';
+import { fetchGuestInformation, GuestInfo } from '../../services/supabase';
+import { GuestInfoCard } from '../../components/common/GuestInfoCard';
 
 type VerificationScreenNavigationProp = CompositeNavigationProp<
   StackNavigationProp<ScannerStackParamList, 'VerificationScreen'>,
@@ -40,9 +45,14 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
   const route = useRoute<VerificationScreenRouteProp>();
   const { access_code = '' } = route.params;
   const { getResidents, saveVerification } = useDatabase();
+  const { authState } = useAuth();
+  const { backgroundSync } = useSync();
   
   const [verifying, setVerifying] = useState(true);
   const [result, setResult] = useState<VerificationResult | null>(null);
+  const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
+  const [loadingGuestInfo, setLoadingGuestInfo] = useState(false);
+  const [guestInfoError, setGuestInfoError] = useState<string | null>(null);
   const [fadeAnim] = useState(new Animated.Value(0));
 
   // Verify the token
@@ -102,6 +112,12 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
               validity_period: verificationResult.visit.validityPeriod,
               created_at: Date.now()
             });
+
+            // Trigger background sync after successful verification
+            if (authState.deviceInfo?.id) {
+              backgroundSync(authState.deviceInfo.id).catch(console.error);
+            }
+
           } catch (error) {
             console.error('Failed to save verification:', error);
             // Don't fail the verification if saving fails
@@ -129,7 +145,43 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [access_code, getResidents, saveVerification]);
+  }, [access_code, getResidents, saveVerification, authState.deviceInfo?.id, backgroundSync]);
+
+  useEffect(() => {
+    let isMounted = true;
+    const loadGuestInfo = async () => {
+      if (!result?.success || !result.resident?.id) return;
+      
+      setLoadingGuestInfo(true);
+      setGuestInfoError(null);
+      
+      try {
+        const response = await fetchGuestInformation(access_code, result.resident.id);
+        if (!isMounted) return;
+
+        if (response.success && response.data) {
+          setGuestInfo(response.data);
+        } else {
+          setGuestInfoError(response.error || 'Failed to load guest information');
+        }
+      } catch (error) {
+        if (!isMounted) return;
+        setGuestInfoError('An unexpected error occurred');
+      } finally {
+        if (isMounted) {
+          setLoadingGuestInfo(false);
+        }
+      }
+    };
+
+    if (result?.success) {
+      loadGuestInfo();
+    }
+
+    return () => {
+      isMounted = false;
+    };
+  }, [result, access_code]);
 
   const handleGoBack = (): void => {
     // Reset state and navigate back to input screen
@@ -317,6 +369,26 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
           </View>
         </View>
 
+        {/* Guest Information Section */}
+        {result.success && (
+          guestInfo ? (
+            <GuestInfoCard
+              guestInfo={guestInfo}
+              isLoading={loadingGuestInfo}
+              error={guestInfoError || undefined}
+            />
+          ) : loadingGuestInfo ? (
+            <GuestInfoCard
+              guestInfo={{
+                full_name: '',
+                phone_number: '',
+                group_size: 0
+              }}
+              isLoading={true}
+            />
+          ) : null
+        )}
+
         <View style={styles.buttonContainer}>
           <TouchableOpacity
             style={styles.viewDetailsButton}
@@ -346,27 +418,33 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
 
-      <View style={styles.content}>
-        <Text style={styles.title}>Verify Access Token</Text>
+      <ScrollView 
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.content}>
+          <Text style={styles.title}>Verify Access Token</Text>
 
-        {/* Token Display Section */}
-        <View style={styles.tokenDisplay}>
-          <Text style={styles.tokenDisplayTitle}>6-digit Token</Text>
-          <View style={styles.tokenBox}>
-            <Text style={styles.tokenText}>{access_code}</Text>
+          {/* Token Display Section */}
+          <View style={styles.tokenDisplay}>
+            <Text style={styles.tokenDisplayTitle}>6-digit Token</Text>
+            <View style={styles.tokenBox}>
+              <Text style={styles.tokenText}>{access_code}</Text>
+            </View>
           </View>
+
+          {/* Verification Result Section */}
+          {verifying ? (
+            <View style={styles.verificationResult}>
+              <ActivityIndicator size="large" color="#4CAF50" />
+              <Text style={styles.loadingText}>Verifying token...</Text>
+            </View>
+          ) : (
+            renderVerificationResult()
+          )}
         </View>
-
-        {/* Verification Result Section */}
-        {verifying ? (
-          <View style={styles.verificationResult}>
-            <ActivityIndicator size="large" color="#4CAF50" />
-            <Text style={styles.loadingText}>Verifying token...</Text>
-          </View>
-        ) : (
-          renderVerificationResult()
-        )}
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 };
@@ -375,6 +453,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#ffffff',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: 24, // Add padding at bottom for better scrolling experience
   },
   backButton: {
     padding: 16,
@@ -660,5 +745,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Medium',
     textAlign: 'center',
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
 });

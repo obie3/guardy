@@ -11,6 +11,7 @@ import { Platform } from 'react-native';
 import { verifyDeviceCode } from '../services/supabase';
 import { AuthDevice, Estate } from '../types/database';
 import { supabase } from '../services/supabase';
+import { useSync } from './SyncContext';
 
 // Define auth state type
 type AuthState = {
@@ -22,31 +23,48 @@ type AuthState = {
   showSuccessScreen: boolean; // Add this new property to control when to show success screen
 };
 
+// Create web storage interface
+interface StorageInterface {
+  setItem: (key: string, value: string) => Promise<void>;
+  getItem: (key: string) => Promise<string | null>;
+  removeItem: (key: string) => Promise<void>;
+}
+
+// Create web storage implementation
+const webStorage: StorageInterface = {
+  setItem: async (key: string, value: string) => await AsyncStorage.setItem(key, value),
+  getItem: async (key: string) => await AsyncStorage.getItem(key),
+  removeItem: async (key: string) => await AsyncStorage.removeItem(key),
+};
+
+// Create native storage implementation
+const nativeStorage: StorageInterface = {
+  setItem: async (key: string, value: string) => await SecureStore.setItemAsync(key, value),
+  getItem: async (key: string) => await SecureStore.getItemAsync(key),
+  removeItem: async (key: string) => await SecureStore.deleteItemAsync(key),
+};
+
 // Define context value type
 type AuthContextValue = {
   authState: AuthState;
+  loading: boolean;
   registerDevice: (
     deviceCode: string
   ) => Promise<{ success: boolean; error?: string }>;
   continueToMainApp: () => void; // Add this new function type
+  storage: StorageInterface;
 };
 
 // Create the context
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
-// Create a storage mechanism that works on both web and native
-const storage =
-  Platform.OS === 'web'
-    ? AsyncStorage
-    : {
-        getItem: (key: string) => SecureStore.getItemAsync(key),
-        setItem: (key: string, value: string) =>
-          SecureStore.setItemAsync(key, value),
-        removeItem: (key: string) => SecureStore.deleteItemAsync(key),
-      };
-
 // Provider component
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
+export const AuthProvider = ({ 
+  children,
+}: { 
+  children: ReactNode;
+}) => {
+  const { forceSyncNow } = useSync();
   const [authState, setAuthState] = useState<AuthState>({
     loading: true,
     deviceRegistered: false,
@@ -61,9 +79,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const initializeAuth = async () => {
       try {
         // Check device registration
-        const deviceCode = await storage.getItem('device_code');
-        const deviceInfoStr = await storage.getItem('device_info');
-        const estateInfoStr = await storage.getItem('estate_info');
+        const deviceCode = await webStorage.getItem('device_code');
+        const deviceInfoStr = await webStorage.getItem('device_info');
+        const estateInfoStr = await webStorage.getItem('estate_info');
         
         let deviceInfo: AuthDevice | null = null;
         let estateInfo: Estate | null = null;
@@ -105,9 +123,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     try {
       // If deviceCode is empty, treat this as an unregister operation
       if (!deviceCode) {
-        await storage.removeItem('device_code');
-        await storage.removeItem('device_info');
-        await storage.removeItem('estate_info');
+        await webStorage.removeItem('device_code');
+        await webStorage.removeItem('device_info');
+        await webStorage.removeItem('estate_info');
         
         setAuthState({
           loading: false,
@@ -126,29 +144,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Fetch estate information
         const { data: estate, error: estateError } = await supabase
           .from('estates')
-          .select('id, name, address, created_at, updated_at')
+          .select('*')
           .eq('id', result.device.estate_id)
           .single();
 
         if (estateError) {
-          console.error('Error fetching estate info:', estateError);
+          console.error('Failed to fetch estate info:', estateError);
           return { success: false, error: 'Failed to fetch estate information' };
         }
 
-        // Store the device code
-        await storage.setItem('device_code', deviceCode);
-        
-        // Store the full device info as JSON
-        if (result.device) {
-          await storage.setItem('device_info', JSON.stringify(result.device));
-        }
+        // Save the device code to secure storage
+        await webStorage.setItem('device_code', deviceCode);
+        await webStorage.setItem('device_info', JSON.stringify(result.device));
+        await webStorage.setItem('estate_info', JSON.stringify(estate));
 
-        // Store the estate info
-        if (estate) {
-          await storage.setItem('estate_info', JSON.stringify(estate));
-        }
-        
-        // Set to registered with showSuccessScreen = true to show success view
+        // Update auth state
         setAuthState({
           loading: false,
           deviceRegistered: true,
@@ -157,6 +167,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           estateInfo: estate,
           showSuccessScreen: true,
         });
+
+        // Trigger initial sync after successful registration
+        if (result.device.id) {
+          await forceSyncNow(result.device.id);
+        }
+
         return { success: true };
       }
 
@@ -174,10 +190,16 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  // Get the correct storage implementation
+  const storage = Platform.OS === 'web' ? webStorage : nativeStorage;
+
+  // Context value
   const value: AuthContextValue = {
     authState,
+    loading: authState.loading,
     registerDevice,
-    continueToMainApp, // Add the function to the context value
+    continueToMainApp,
+    storage,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

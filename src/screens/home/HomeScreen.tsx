@@ -15,6 +15,7 @@ import {
   Dimensions,
   ActivityIndicator
 } from 'react-native';
+import { useFocusEffect } from '@react-navigation/native';
 import { SyncProgress } from '../../components/common/SyncProgress';
 import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
@@ -95,41 +96,50 @@ const HomeScreen = () => {
     return units.split(',')[0].trim();
   };
 
-  useEffect(() => {
-    const fetchRecentVerifications = async () => {
-      setLoading(true);
-      try {
-        const [verifications, residents] = await Promise.all([
-          getVerifications(),
-          getResidents()
-        ]);
-        
-        console.log('Fetched verifications:', verifications.length);
-        console.log('Fetched residents:', residents.length);
-        
-        const recentOnes = verifications
-          .sort((a, b) => b.visit_date - a.visit_date)
-          .slice(0, 5)
-          .map(verification => {
-            const resident = residents.find(r => r.id === verification.resident_id);
-            return {
-              ...verification,
-              residentName: resident?.full_name,
-              unit: getFirstUnit(resident?.assigned_units)
-            };
-          });
-        
-        console.log('Processed recent verifications:', recentOnes.length);
-        setRecentVerifications(recentOnes);
-      } catch (error) {
-        console.error('Error fetching verifications:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+  const fetchRecentVerifications = async () => {
+    setLoading(true);
+    try {
+      const [verifications, residents] = await Promise.all([
+        getVerifications(),
+        getResidents()
+      ]);
+      
+      console.log('Fetched verifications:', verifications.length);
+      console.log('Fetched residents:', residents.length);
+      
+      const recentOnes = verifications
+        .sort((a, b) => b.visit_date - a.visit_date)
+        .slice(0, 5)
+        .map(verification => {
+          const resident = residents.find(r => r.id === verification.resident_id);
+          return {
+            ...verification,
+            residentName: resident?.full_name,
+            unit: getFirstUnit(resident?.assigned_units)
+          };
+        });
+      
+      console.log('Processed recent verifications:', recentOnes.length);
+      setRecentVerifications(recentOnes);
+    } catch (error) {
+      console.error('Error fetching verifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch on initial load
+  useEffect(() => {
     fetchRecentVerifications();
-  }, [getVerifications, getResidents]);
+  }, []);
+
+  // Refetch when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      console.log('HomeScreen focused, fetching recent verifications');
+      fetchRecentVerifications();
+    }, [])
+  );
 
   return (
     <SafeAreaView 
@@ -151,24 +161,6 @@ const HomeScreen = () => {
               Guest Verification Terminal
             </Text>
           </View>
-
-          <TouchableOpacity
-            style={[styles.syncButton, { backgroundColor: theme.colors.primary }]}
-            onPress={handleSync}
-            disabled={syncStatus.isSyncing}
-          >
-            <RefreshCw 
-              size={20} 
-              color={theme.colors.text.inverse} 
-              style={[
-                styles.syncIcon,
-                syncStatus.isSyncing && styles.rotating
-              ]} 
-            />
-            <Text style={[styles.syncButtonText, { color: theme.colors.text.inverse }]}>
-              {syncStatus.isSyncing ? 'Syncing...' : 'Sync Data'}
-            </Text>
-          </TouchableOpacity>
         </View>
 
         {/* Main Verification Actions */}
@@ -377,7 +369,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   welcomeSection: {
-    marginVertical: 12,
+    marginVertical: 8,
   },
   welcomeTitle: {
     fontSize: 28,

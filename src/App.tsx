@@ -61,16 +61,16 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <AuthProvider>
-          <DatabaseProvider>
-            <SyncProvider>
+        <DatabaseProvider>
+          <SyncProvider>
+            <AuthProvider>
               <NavigationContainer>
                 <StatusBar style="auto" />
                 <RootNavigator />
               </NavigationContainer>
-            </SyncProvider>
-          </DatabaseProvider>
-        </AuthProvider>
+            </AuthProvider>
+          </SyncProvider>
+        </DatabaseProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

@@ -14,12 +14,14 @@ import * as SecureStore from 'expo-secure-store';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { useSync } from '../../context/SyncContext';
+import { useDatabase } from '../../context/DatabaseContext';
 import { User, Moon, RefreshCw, ChevronRight, Bell, Shield, CircleHelp as HelpCircle, Smartphone } from 'lucide-react-native';
 
 const SettingsScreen = () => {
   const { theme, isDarkMode, toggleTheme } = useTheme();
   const { authState, registerDevice } = useAuth();
-  const { uploadData, syncStatus } = useSync();
+  const { syncResidents, syncStatus } = useSync();
+  const { clearDatabase } = useDatabase();
 
   const handleUnregisterDevice = async () => {
     Alert.alert(
@@ -32,6 +34,9 @@ const SettingsScreen = () => {
           style: 'destructive',
           onPress: async () => {
             try {
+              // Clear all data from database first
+              await clearDatabase();
+
               // For web or native, we need to remove the device_code from storage
               if (Platform.OS === 'web') {
                 await AsyncStorage.removeItem('device_code');
@@ -67,20 +72,18 @@ const SettingsScreen = () => {
       style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
       contentContainerStyle={styles.contentContainer}
     >
-      <View style={[styles.deviceHeader, { backgroundColor: theme.colors.background.secondary, borderRadius: 12, padding: 16 }]}>
+      <View style={styles.deviceHeader}>
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primary + '20' }]}>
           <Smartphone size={32} color={theme.colors.primary} />
         </View>
         <View style={styles.deviceInfo}>
+        <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
+            Device Code
+          </Text>
           <Text style={[styles.deviceName, { color: theme.colors.text.primary }]}>
-            {authState.estateInfo?.name || 'Unknown Estate'}
+            {authState.deviceCode || 'No Device'}
           </Text>
-          <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
-            Device: {authState.deviceCode || 'No Device'}
-          </Text>
-          <Text style={[styles.estateAddress, { color: theme.colors.text.tertiary }]}>
-            {authState.estateInfo?.address || 'Address not available'}
-          </Text>
+        
         </View>
       </View>
 
@@ -92,7 +95,7 @@ const SettingsScreen = () => {
         <View style={[styles.card, { backgroundColor: theme.colors.background.secondary }]}>
           <TouchableOpacity 
             style={styles.settingRow}
-            onPress={uploadData}
+            onPress={() => syncResidents(authState.deviceInfo?.id || '')}
             disabled={syncStatus.isSyncing}
           >
             <View style={styles.settingLeft}>
@@ -226,11 +229,6 @@ const styles = StyleSheet.create({
   deviceId: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
-  },
-  estateAddress: {
-    fontSize: 12,
-    fontFamily: 'Poppins-Regular',
-    marginTop: 4,
   },
   section: {
     marginBottom: 24,
