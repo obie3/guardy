@@ -77,6 +77,7 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
 
         try {
           await saveResident({
+            id: resident.id,
             full_name: resident.full_name,
             phone_number: resident.phone_number,
             secret: resident.secret,

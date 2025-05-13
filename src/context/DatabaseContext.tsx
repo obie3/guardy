@@ -140,11 +140,49 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     if (database === null) {
       throw new Error('Database not initialized');
     }
-    const residentId = generateUniqueId();
-    await database.runAsync(
-      'INSERT INTO residents (id, full_name, phone_number, secret, assigned_units, synced, last_sync) VALUES (?, ?, ?, ?, ?, ?, ?)',
-      [residentId, param.full_name, param.phone_number, param.secret, param.assigned_units, param.synced ? 1 : 0, param.last_sync]
+
+    // Check if resident already exists
+    const existing = await database.getFirstAsync<Resident>(
+      'SELECT * FROM residents WHERE id = ?',
+      [param.id]
     );
+
+    if (existing) {
+      // Update existing resident
+      await database.runAsync(
+        `UPDATE residents 
+         SET full_name = ?, 
+             phone_number = ?, 
+             secret = ?, 
+             assigned_units = ?, 
+             synced = ?, 
+             last_sync = ?
+         WHERE id = ?`,
+        [
+          param.full_name,
+          param.phone_number,
+          param.secret,
+          param.assigned_units,
+          param.synced ? 1 : 0,
+          param.last_sync,
+          param.id
+        ]
+      );
+    } else {
+      // Insert new resident
+      await database.runAsync(
+        'INSERT INTO residents (id, full_name, phone_number, secret, assigned_units, synced, last_sync) VALUES (?, ?, ?, ?, ?, ?, ?)',
+        [
+          param.id,
+          param.full_name,
+          param.phone_number,
+          param.secret,
+          param.assigned_units,
+          param.synced ? 1 : 0,
+          param.last_sync
+        ]
+      );
+    }
   };
 
   // Get all scans from the database

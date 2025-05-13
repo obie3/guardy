@@ -8,7 +8,7 @@ export interface Scan {
 }
 
 export interface Resident {
-  id?: string;
+  id: string;
   full_name: string;
   phone_number: string;
   secret: string;
