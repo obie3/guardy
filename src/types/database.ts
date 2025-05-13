@@ -1,10 +1,11 @@
 // Interfaces for database entities
 
-export interface Scan {
+export interface Estate {
   id: string;
-  access_code: string;
-  timestamp: number;
-  synced: boolean;
+  name: string;
+  address: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Resident {
@@ -47,7 +48,16 @@ export interface AuthDevice {
   last_synced_at?: string;
 }
 
+export interface Verification {
+  id: string;
+  resident_id: string;
+  access_code: string;
+  visit_date: number;
+  validity_period: number;
+  created_at: number;
+  synced: boolean;
+}
+
 // Type definitions for database operations
-export type SaveScanFunction = (access_code: string) => Promise<Scan>;
-export type GetScansFunction = () => Promise<Scan[]>;
-export type AddScansFunction = () => Promise<Scan[]>;
+export type SaveVerificationFunction = (verification: Omit<Verification, 'id' | 'synced'>) => Promise<Verification>;
+export type GetVerificationsFunction = () => Promise<Verification[]>;

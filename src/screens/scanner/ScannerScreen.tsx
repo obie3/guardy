@@ -25,7 +25,6 @@ type ScannerScreenNavigationProp = CompositeNavigationProp<
 export const ScannerScreen = () => {
   const navigation = useNavigation<ScannerScreenNavigationProp>();
   const { theme } = useTheme();
-  const { saveScan } = useDatabase();
 
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [scanned, setScanned] = useState(false);
@@ -61,21 +60,10 @@ export const ScannerScreen = () => {
       } catch (error) {
         console.log('Haptics not available:', error);
       }
-    }
-
-    try {
-      // Save scan to database
-      const scan = await saveScan(data);
-
-      // Navigate to verification screen
+    }      // Navigate to verification screen
       navigation.navigate('VerificationScreen', {
-        access_code: scan.access_code,
+        access_code: data,
       });
-    } catch (error) {
-      console.error('Error saving scan:', error);
-      Alert.alert('Error', 'Failed to save scan data. Please try again.');
-      setScanned(false);
-    }
   };
 
   if (hasPermission === null) {

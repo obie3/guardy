@@ -6,12 +6,12 @@ import React, {
   ReactNode,
 } from 'react';
 import * as SQLite from 'expo-sqlite';
-import { Resident, Scan } from '../types/database';
+import { Resident, Verification, SaveVerificationFunction, GetVerificationsFunction } from '../types/database';
 
 type DatabaseContextValue = {
   database: SQLite.SQLiteDatabase | null;
-  saveScan: (access_code: string) => Promise<Scan>;
-  getScans: () => Promise<Scan[]>;
+  saveVerification: SaveVerificationFunction;
+  getVerifications: GetVerificationsFunction;
   getResidents: () => Promise<Resident[]>;
   deleteSyncedRecord: (id: string) => Promise<void>;
   saveResident: (param: Resident) => Promise<void>;
@@ -73,34 +73,33 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
             // Update version
             await db.execAsync('INSERT INTO db_version (version) VALUES (1)');
           }
+
+          // Migration to version 2: Add verifications table and drop scans
+          if (currentVersion < 2) {
+            // Drop scans table
+            await db.execAsync('DROP TABLE IF EXISTS scans');
+
+            // Create verifications table
+            await db.execAsync(
+              `CREATE TABLE IF NOT EXISTS verifications (
+                id TEXT PRIMARY KEY,
+                resident_id TEXT NOT NULL,
+                access_code TEXT NOT NULL,
+                visit_date INTEGER NOT NULL,
+                validity_period INTEGER NOT NULL,
+                created_at INTEGER NOT NULL,
+                synced INTEGER NOT NULL DEFAULT 0,
+                FOREIGN KEY (resident_id) REFERENCES residents (id)
+              )`
+            );
+
+            // Update version
+            await db.execAsync('INSERT INTO db_version (version) VALUES (2)');
+          }
         });
         
         setDatabase(db);
-
-        // Create tables if they don't exist
-        db.withTransactionAsync(async () => {
-          await db.execAsync(
-            `CREATE TABLE IF NOT EXISTS scans (
-              id TEXT PRIMARY KEY,
-              access_code TEXT NOT NULL,
-              timestamp INTEGER NOT NULL,
-              synced INTEGER NOT NULL DEFAULT 0
-            )`
-          );
-
-          await db.execAsync(
-            `CREATE TABLE IF NOT EXISTS residents (
-              id TEXT PRIMARY KEY,
-              full_name TEXT NOT NULL,
-              phone_number TEXT NOT NULL,
-              secret TEXT NOT NULL,
-              assigned_units TEXT NOT NULL,
-              synced INTEGER NOT NULL DEFAULT 0,
-              last_sync INTEGER
-            )`
-          );
-          saveScan('12345566');
-        });
+        setLoading(false);
       } catch (e) {
         console.error('Error initializing database:', e);
         setError('Failed to initialize database');
@@ -115,25 +114,80 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     return 'id_' + Date.now();
   };
 
-  // Save a new scan to the database
-  const saveScan = async (access_code: string): Promise<Scan> => {
+  // Save a new verification to the database or update if access code exists
+  const saveVerification = async (params: Omit<Verification, 'id' | 'synced'>): Promise<Verification> => {
     if (database === null) {
       throw new Error('Database not initialized');
     }
-    const scanId = generateUniqueId();
-    const timestamp = Date.now();
-    const newScan: Scan = {
-      id: generateUniqueId(),
-      access_code: access_code,
-      timestamp,
-      synced: false,
-    };
-    const result = await database.runAsync(
-      'INSERT INTO scans (id, access_code, timestamp, synced) VALUES (?, ?, ?, ?)',
-      [Number(scanId), access_code, timestamp, 0]
+
+    // Check if a verification with this access code already exists
+    const existing = await database.getFirstAsync<Verification>(
+      'SELECT * FROM verifications WHERE access_code = ?',
+      [params.access_code]
     );
 
-    return newScan;
+    if (existing) {
+      // Update existing verification
+      const updatedVerification: Verification = {
+        ...existing,
+        resident_id: params.resident_id,
+        visit_date: params.visit_date,
+        validity_period: params.validity_period,
+        created_at: Date.now(), // Update the creation time
+        synced: false // Reset sync status since we're updating
+      };
+
+      await database.runAsync(
+        `UPDATE verifications 
+         SET resident_id = ?,
+             visit_date = ?,
+             validity_period = ?,
+             created_at = ?,
+             synced = ?
+         WHERE access_code = ?`,
+        [
+          updatedVerification.resident_id,
+          updatedVerification.visit_date,
+          updatedVerification.validity_period,
+          updatedVerification.created_at,
+          0, // synced = false
+          params.access_code
+        ]
+      );
+
+      return updatedVerification;
+    }
+
+    // If no existing verification, create a new one
+    const id = generateUniqueId();
+    const newVerification: Verification = {
+      id,
+      ...params,
+      synced: false
+    };
+
+    await database.runAsync(
+      `INSERT INTO verifications (
+        id,
+        resident_id,
+        access_code,
+        visit_date,
+        validity_period,
+        created_at,
+        synced
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newVerification.id,
+        newVerification.resident_id,
+        newVerification.access_code,
+        newVerification.visit_date,
+        newVerification.validity_period,
+        newVerification.created_at,
+        0 // synced = false
+      ]
+    );
+
+    return newVerification;
   };
 
   const saveResident = async (param: Resident): Promise<void> => {
@@ -185,31 +239,6 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Get all scans from the database
-  const getScans = async (): Promise<Scan[]> => {
-    if (database === null) {
-      throw new Error('Database not initialized');
-    }
-
-    const result: Scan[] = await database.getAllAsync(
-      'SELECT * FROM scans ORDER BY timestamp DESC'
-    );
-
-    const scans: Scan[] = [];
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      scans.push({
-        id: item.id,
-        access_code: item.access_code,
-        timestamp: item.timestamp,
-        synced: true,
-      });
-
-      // console.log(row.id, row.value, row.intValue);
-    }
-    return scans;
-  };
-
   // Get all residents from the database
   const getResidents = async (): Promise<Resident[]> => {
     if (database === null) {
@@ -220,20 +249,31 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
       'SELECT * FROM residents'
     );
 
-    const residents: Resident[] = [];
-    for (let i = 0; i < result.length; i++) {
-      const item = result[i];
-      residents.push({
-        id: item.id,
-        full_name: item.full_name,
-        phone_number: item.phone_number,
-        secret: item.secret,
-        assigned_units: item.assigned_units,
-        synced: Boolean(item.synced),
-        last_sync: item.last_sync,
-      });
+    return result.map(item => ({
+      id: item.id,
+      full_name: item.full_name,
+      phone_number: item.phone_number,
+      secret: item.secret,
+      assigned_units: item.assigned_units,
+      synced: Boolean(item.synced),
+      last_sync: item.last_sync,
+    }));
+  };
+
+  // Get all verifications from the database
+  const getVerifications = async (): Promise<Verification[]> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
     }
-    return residents;
+
+    const result = await database.getAllAsync<Verification>(
+      'SELECT * FROM verifications ORDER BY created_at DESC'
+    );
+
+    return result.map(item => ({
+      ...item,
+      synced: Boolean(item.synced)
+    }));
   };
 
   const deleteSyncedRecord = async (id: string): Promise<void> => {
@@ -249,12 +289,11 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
   // Context value
   const value: DatabaseContextValue = {
     database,
-    saveScan,
-    getScans,
+    saveVerification,
+    getVerifications,
     getResidents,
     saveResident,
     deleteSyncedRecord,
-    // addScans,
     loading,
     error,
   };

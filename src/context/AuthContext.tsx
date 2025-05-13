@@ -5,11 +5,12 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import { Platform } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 import { verifyDeviceCode } from '../services/supabase';
-import { AuthDevice } from '../types/database';
+import { AuthDevice, Estate } from '../types/database';
+import { supabase } from '../services/supabase';
 
 // Define auth state type
 type AuthState = {
@@ -17,6 +18,7 @@ type AuthState = {
   deviceRegistered: boolean;
   deviceCode: string | null;
   deviceInfo: AuthDevice | null;
+  estateInfo: Estate | null;
   showSuccessScreen: boolean; // Add this new property to control when to show success screen
 };
 
@@ -26,7 +28,7 @@ type AuthContextValue = {
   registerDevice: (
     deviceCode: string
   ) => Promise<{ success: boolean; error?: string }>;
-  continueToMainApp: () => void; // Add this method to control navigation to main app
+  continueToMainApp: () => void; // Add this new function type
 };
 
 // Create the context
@@ -50,6 +52,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     deviceRegistered: false,
     deviceCode: null,
     deviceInfo: null,
+    estateInfo: null,
     showSuccessScreen: false,
   });
 
@@ -60,32 +63,35 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         // Check device registration
         const deviceCode = await storage.getItem('device_code');
         const deviceInfoStr = await storage.getItem('device_info');
+        const estateInfoStr = await storage.getItem('estate_info');
+        
         let deviceInfo: AuthDevice | null = null;
+        let estateInfo: Estate | null = null;
         
         if (deviceInfoStr) {
-          try {
-            deviceInfo = JSON.parse(deviceInfoStr);
-          } catch (e) {
-            console.error('Failed to parse stored device info:', e);
-          }
+          deviceInfo = JSON.parse(deviceInfoStr);
         }
         
-        const deviceRegistered = Boolean(deviceCode);
+        if (estateInfoStr) {
+          estateInfo = JSON.parse(estateInfoStr);
+        }
 
         setAuthState({
           loading: false,
-          deviceRegistered: deviceRegistered,
-          deviceCode: deviceCode,
-          deviceInfo: deviceInfo,
+          deviceRegistered: Boolean(deviceCode),
+          deviceCode: deviceCode || null,
+          deviceInfo,
+          estateInfo,
           showSuccessScreen: false,
         });
       } catch (error) {
-        console.error('Unexpected error during auth initialization:', error);
+        console.error('Error initializing auth:', error);
         setAuthState({
           loading: false,
           deviceRegistered: false,
           deviceCode: null,
           deviceInfo: null,
+          estateInfo: null,
           showSuccessScreen: false,
         });
       }
@@ -101,11 +107,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       if (!deviceCode) {
         await storage.removeItem('device_code');
         await storage.removeItem('device_info');
+        await storage.removeItem('estate_info');
+        
         setAuthState({
           loading: false,
           deviceRegistered: false,
           deviceCode: null,
           deviceInfo: null,
+          estateInfo: null,
           showSuccessScreen: false,
         });
         return { success: true };
@@ -114,12 +123,29 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       const result = await verifyDeviceCode(deviceCode);
 
       if (result.success && result.device) {
+        // Fetch estate information
+        const { data: estate, error: estateError } = await supabase
+          .from('estates')
+          .select('id, name, address, created_at, updated_at')
+          .eq('id', result.device.estate_id)
+          .single();
+
+        if (estateError) {
+          console.error('Error fetching estate info:', estateError);
+          return { success: false, error: 'Failed to fetch estate information' };
+        }
+
         // Store the device code
         await storage.setItem('device_code', deviceCode);
         
         // Store the full device info as JSON
         if (result.device) {
           await storage.setItem('device_info', JSON.stringify(result.device));
+        }
+
+        // Store the estate info
+        if (estate) {
+          await storage.setItem('estate_info', JSON.stringify(estate));
         }
         
         // Set to registered with showSuccessScreen = true to show success view
@@ -128,6 +154,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           deviceRegistered: true,
           deviceCode: deviceCode,
           deviceInfo: result.device,
+          estateInfo: estate,
           showSuccessScreen: true,
         });
         return { success: true };
@@ -140,19 +167,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  // Add function to continue to main app after seeing success screen
   const continueToMainApp = () => {
-    console.log('Continuing to main app');
     setAuthState(prev => ({
       ...prev,
-      showSuccessScreen: false, // This will trigger navigation to main app
+      showSuccessScreen: false
     }));
   };
 
   const value: AuthContextValue = {
     authState,
     registerDevice,
-    continueToMainApp,
+    continueToMainApp, // Add the function to the context value
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

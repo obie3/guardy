@@ -67,18 +67,20 @@ const SettingsScreen = () => {
       style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
       contentContainerStyle={styles.contentContainer}
     >
-      <View style={styles.deviceHeader}>
+      <View style={[styles.deviceHeader, { backgroundColor: theme.colors.background.secondary, borderRadius: 12, padding: 16 }]}>
         <View style={[styles.avatarContainer, { backgroundColor: theme.colors.primary + '20' }]}>
           <Smartphone size={32} color={theme.colors.primary} />
         </View>
         <View style={styles.deviceInfo}>
-        <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
-            Device Code
-          </Text>
           <Text style={[styles.deviceName, { color: theme.colors.text.primary }]}>
-            {authState.deviceCode || 'No Device'}
+            {authState.estateInfo?.name || 'Unknown Estate'}
           </Text>
-        
+          <Text style={[styles.deviceId, { color: theme.colors.text.secondary }]}>
+            Device: {authState.deviceCode || 'No Device'}
+          </Text>
+          <Text style={[styles.estateAddress, { color: theme.colors.text.tertiary }]}>
+            {authState.estateInfo?.address || 'Address not available'}
+          </Text>
         </View>
       </View>
 
@@ -91,7 +93,7 @@ const SettingsScreen = () => {
           <TouchableOpacity 
             style={styles.settingRow}
             onPress={uploadData}
-            disabled={syncStatus.isUploading}
+            disabled={syncStatus.isSyncing}
           >
             <View style={styles.settingLeft}>
               <View style={[styles.iconContainer, { backgroundColor: theme.colors.primary + '20' }]}>
@@ -102,10 +104,10 @@ const SettingsScreen = () => {
                   Sync Data
                 </Text>
                 <Text style={[styles.settingDescription, { color: theme.colors.text.tertiary }]}>
-                  {syncStatus.isUploading
+                  {syncStatus.isSyncing
                     ? 'Syncing...'
-                    : syncStatus.lastUploadTime
-                    ? `Last sync: ${new Date(syncStatus.lastUploadTime ).toLocaleTimeString()}`
+                    : syncStatus.lastSyncTime
+                    ? `Last sync: ${new Date(syncStatus.lastSyncTime).toLocaleTimeString()}`
                     : 'Sync device data with estate server'}
                 </Text>
               </View>
@@ -224,6 +226,11 @@ const styles = StyleSheet.create({
   deviceId: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
+  },
+  estateAddress: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Regular',
+    marginTop: 4,
   },
   section: {
     marginBottom: 24,

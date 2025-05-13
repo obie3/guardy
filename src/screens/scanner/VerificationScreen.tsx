@@ -39,7 +39,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
 }) => {
   const route = useRoute<VerificationScreenRouteProp>();
   const { access_code = '' } = route.params;
-  const { getResidents, saveScan } = useDatabase();
+  const { getResidents, saveVerification } = useDatabase();
   
   const [verifying, setVerifying] = useState(true);
   const [result, setResult] = useState<VerificationResult | null>(null);
@@ -47,21 +47,12 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
 
   // Verify the token
   useEffect(() => {
-    // Log the code for debugging
-    console.log('Verifying access code:', access_code);
-    
     // Keep track of mounted state
     let isMounted = true;
-    
-    // Save the scan to the database immediately
-    saveScan(access_code).catch(err => 
-      console.error('Failed to save scan:', err)
-    );
     
     // Verify the token
     const verifyToken = async () => {
       try {
-        // Get all residents from the database
         const residents = await getResidents();
         console.log(`Fetched ${residents.length} residents for verification`);
         
@@ -100,6 +91,23 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         if (!isMounted) return;
         
         console.log('Verification result:', verificationResult);
+
+        // If verification was successful, save the verification record
+        if (verificationResult.success && verificationResult.resident && verificationResult.visit) {
+          try {
+            await saveVerification({
+              resident_id: verificationResult.resident.id,
+              access_code: access_code,
+              visit_date: verificationResult.visit.visitDate.getTime(),
+              validity_period: verificationResult.visit.validityPeriod,
+              created_at: Date.now()
+            });
+          } catch (error) {
+            console.error('Failed to save verification:', error);
+            // Don't fail the verification if saving fails
+          }
+        }
+
         setResult(verificationResult);
         setVerifying(false);
       } catch (error) {
@@ -121,7 +129,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [access_code, getResidents, saveScan]);
+  }, [access_code, getResidents, saveVerification]);
 
   const handleGoBack = (): void => {
     // Reset state and navigate back to input screen

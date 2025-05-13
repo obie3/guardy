@@ -30,7 +30,9 @@ const deviceRegistrationSchema = yup.object().shape({
 
 const DeviceRegistrationScreen = () => {
   const navigation = useNavigation<DeviceRegistrationScreenNavigationProp>();
-  const { registerDevice, continueToMainApp, authState } = useAuth();
+  const auth = useAuth();
+  if (!auth) throw new Error('AuthContext not found');
+  const { registerDevice, continueToMainApp, authState } = auth;
   const { theme } = useTheme();
 
   const [deviceCode, setDeviceCode] = useState('');
@@ -141,54 +143,110 @@ const DeviceRegistrationScreen = () => {
               This device has been successfully registered and is now authorized to use the app.
             </Text>
             
-            {authState.deviceInfo && (
+            {(authState.deviceInfo || authState.estateInfo) && (
               <View style={[styles.deviceInfoCard, { 
                 backgroundColor: theme.colors.background.secondary,
                 borderColor: theme.colors.border
               }]}>
-                <Text style={[styles.deviceInfoTitle, { color: theme.colors.text.primary }]}>
-                  Device Information
-                </Text>
-                
-                <View style={styles.deviceInfoRow}>
-                  <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
-                    Device Code:
-                  </Text>
-                  <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
-                    {authState.deviceCode}
-                  </Text>
-                </View>
-                
-                {authState.deviceInfo.name && (
-                  <View style={styles.deviceInfoRow}>
-                    <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
-                      Device Name:
+                {/* Estate Information Section */}
+                {authState.estateInfo && (
+                  <>
+                    <Text style={[styles.deviceInfoTitle, { color: theme.colors.text.primary }]}>
+                      Estate Information
                     </Text>
-                    <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
-                      {authState.deviceInfo.name}
-                    </Text>
-                  </View>
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
+                        Estate Name:
+                      </Text>
+                      <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
+                        {authState.estateInfo.name}
+                      </Text>
+                    </View>
+
+                    <View style={styles.deviceInfoRow}>
+                      <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
+                        Address:
+                      </Text>
+                      <View style={styles.addressContainer}>
+                        <Text style={[styles.deviceInfoValue, { 
+                          color: theme.colors.text.primary,
+                          flex: 1,
+                          flexWrap: 'wrap'
+                        }]}>
+                          {authState.estateInfo.address}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.divider} />
+                  </>
                 )}
-                
-                {authState.deviceInfo.status && (
-                  <View style={styles.deviceInfoRow}>
-                    <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
-                      Estate:
+
+                {/* Device Information Section */}
+                {authState.deviceInfo && (
+                  <>
+                    <Text style={[styles.deviceInfoTitle, { 
+                      color: theme.colors.text.primary,
+                      marginTop: authState.estateInfo ? theme.spacing.m : 0 
+                    }]}>
+                      Device Information
                     </Text>
-                    <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
-                      {authState.deviceInfo.status}
-                    </Text>
-                  </View>
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
+                        Device Code:
+                      </Text>
+                      <Text style={[styles.deviceInfoValue, { 
+                        color: theme.colors.text.primary,
+                        fontFamily: 'Poppins-Medium'
+                      }]}>
+                        {authState.deviceCode}
+                      </Text>
+                    </View>
+                    
+                    {authState.deviceInfo.name && (
+                      <View style={styles.deviceInfoRow}>
+                        <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
+                          Device Name:
+                        </Text>
+                        <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
+                          {authState.deviceInfo.name}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    <View style={styles.deviceInfoRow}>
+                      <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
+                        Status:
+                      </Text>
+                      <View style={[
+                        styles.statusBadge, 
+                        { backgroundColor: authState.deviceInfo.status 
+                          ? theme.colors.success + '20'
+                          : theme.colors.error + '20' 
+                        }
+                      ]}>
+                        <View style={[
+                          styles.statusDot,
+                          { backgroundColor: authState.deviceInfo.status 
+                            ? theme.colors.success 
+                            : theme.colors.error 
+                          }
+                        ]} />
+                        <Text style={[
+                          styles.statusText,
+                          { color: authState.deviceInfo.status 
+                            ? theme.colors.success 
+                            : theme.colors.error 
+                          }
+                        ]}>
+                          {authState.deviceInfo.status ? 'Active' : 'Inactive'}
+                        </Text>
+                      </View>
+                    </View>
+                  </>
                 )}
-                
-                <View style={styles.deviceInfoRow}>
-                  <Text style={[styles.deviceInfoLabel, { color: theme.colors.text.secondary }]}>
-                    Status:
-                  </Text>
-                  <Text style={[styles.deviceInfoValue, { color: theme.colors.text.primary }]}>
-                    {authState.deviceInfo.status ? 'active' : 'inactive'}
-                  </Text>
-                </View>
               </View>
             )}
             
@@ -340,9 +398,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   successContainer: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    flex: 1,
   },
   successIconContainer: {
     width: 80,
@@ -354,9 +412,9 @@ const styles = StyleSheet.create({
   },
   deviceInfoCard: {
     width: '100%',
+    padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    padding: 16,
     marginTop: 24,
   },
   deviceInfoTitle: {
@@ -371,11 +429,40 @@ const styles = StyleSheet.create({
   },
   deviceInfoLabel: {
     fontSize: 14,
-    fontFamily: 'Poppins-Medium',
+    fontFamily: 'Poppins-Regular',
+    marginRight: 8,
+    flex: 0.4,
   },
   deviceInfoValue: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
+    flex: 0.6,
+  },
+  addressContainer: {
+    flex: 0.6,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 12,
+  },
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    marginRight: 6,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: 'Poppins-Medium',
+  },
+  divider: {
+    height: 1,
+    width: '100%',
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
   },
 });
 
