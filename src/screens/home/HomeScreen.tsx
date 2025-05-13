@@ -163,6 +163,45 @@ const HomeScreen = () => {
           </View>
         </View>
 
+         {/* Device Info Section */}
+        <View style={[styles.sectionContainer, { backgroundColor: theme.colors.background.secondary }]}>
+          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+            Device Information
+          </Text>
+          
+          <View style={styles.deviceInfoRow}>
+            <View>
+              <Text style={[styles.deviceLabel, { color: theme.colors.text.secondary }]}>
+                Device ID
+              </Text>
+              <Text style={[styles.deviceId, { color: theme.colors.text.primary }]}>
+                {authState.deviceCode || 'Not registered'}
+              </Text>
+            </View>
+            
+            <TouchableOpacity
+                style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
+                onPress={handleSync}
+                disabled={syncStatus.isSyncing}
+              >
+              <RefreshCw
+                size={18}
+                color={theme.colors.primary}
+                style={syncStatus.isSyncing ? styles.rotating : undefined}
+              />
+              <Text style={[styles.syncButtonText, { color: theme.colors.primary }]}>
+                {syncStatus.isSyncing ? 'Syncing...' : 'Sync'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={[styles.lastSyncText, { color: theme.colors.text.tertiary }]}>
+            {syncStatus.lastSyncTime
+              ? `Last synced: ${formatDate(syncStatus.lastSyncTime)}`
+              : 'Not synced yet'}
+          </Text>
+        </View>
+
         {/* Main Verification Actions */}
         <View style={[styles.mainActionCard, { backgroundColor: theme.colors.background.secondary }]}>
           <Text style={[styles.mainActionTitle, { color: theme.colors.text.primary }]}>
@@ -172,29 +211,30 @@ const HomeScreen = () => {
           <View style={styles.mainButtonsContainer}>
             <TouchableOpacity 
               style={[styles.mainActionButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => navigation.jumpTo('Scanner', { screen: 'ScanQR' })}
-            >
-              <View style={styles.mainActionIconContainer}>
-                <QrCode size={36} color={theme.colors.text.inverse} />
-              </View>
-              <Text style={[styles.mainActionButtonText, { color: theme.colors.text.inverse }]}>
-                Scan QR Code
-              </Text>
-              <ArrowRight size={20} color={theme.colors.text.inverse} style={styles.mainActionArrow} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity 
-              style={[styles.mainActionButton, { backgroundColor: theme.colors.background.tertiary }]}
               onPress={() => navigation.jumpTo('Scanner', { screen: 'EntercodeScreen' })}
             >
               <View style={styles.mainActionIconContainer}>
-                <Keyboard size={36} color={theme.colors.primary} />
+                <Keyboard size={36} color={theme.colors.text.inverse} />
+              </View>
+              <Text style={[styles.mainActionButtonText, { color: theme.colors.text.inverse }]}>
+                Enter Access Code
+              </Text>
+              <ArrowRight size={20} color={theme.colors.text.inverse} style={styles.mainActionArrow} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.mainActionButton, { backgroundColor: theme.colors.background.tertiary }]}
+              onPress={() => navigation.jumpTo('Scanner', { screen: 'ScanQR' })}
+            >
+              <View style={styles.mainActionIconContainer}>
+                <QrCode size={36} color={theme.colors.primary} />
               </View>
               <Text style={[styles.mainActionButtonText, { color: theme.colors.text.primary }]}>
-                Enter Access Code
+                Scan QR Code
               </Text>
               <ArrowRight size={20} color={theme.colors.primary} style={styles.mainActionArrow} />
             </TouchableOpacity>
+            
+            
           </View>
         </View>
 
@@ -293,45 +333,7 @@ const HomeScreen = () => {
           )}
         </View>
 
-        {/* Device Info Section */}
-        <View style={[styles.sectionContainer, { backgroundColor: theme.colors.background.secondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
-            Device Information
-          </Text>
-          
-          <View style={styles.deviceInfoRow}>
-            <View>
-              <Text style={[styles.deviceLabel, { color: theme.colors.text.secondary }]}>
-                Device ID
-              </Text>
-              <Text style={[styles.deviceId, { color: theme.colors.text.primary }]}>
-                {authState.deviceCode || 'Not registered'}
-              </Text>
-            </View>
-            
-            <TouchableOpacity
-                style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
-                onPress={handleSync}
-                disabled={syncStatus.isSyncing}
-              >
-              <RefreshCw
-                size={18}
-                color={theme.colors.primary}
-                style={syncStatus.isSyncing ? styles.rotating : undefined}
-              />
-              <Text style={[styles.syncButtonText, { color: theme.colors.primary }]}>
-                {syncStatus.isSyncing ? 'Syncing...' : 'Sync'}
-              </Text>
-            </TouchableOpacity>
-          </View>
-          
-          <Text style={[styles.lastSyncText, { color: theme.colors.text.tertiary }]}>
-            {syncStatus.lastSyncTime
-              ? `Last synced: ${formatDate(syncStatus.lastSyncTime)}`
-              : 'Not synced yet'}
-          </Text>
-        </View>
-
+       
         {/* Help Section */}
         <TouchableOpacity 
           style={[styles.helpSection, { backgroundColor: theme.colors.background.secondary }]}
