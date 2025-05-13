@@ -12,6 +12,7 @@ type DatabaseContextValue = {
   database: SQLite.SQLiteDatabase | null;
   saveScan: (access_code: string) => Promise<Scan>;
   getScans: () => Promise<Scan[]>;
+  getResidents: () => Promise<Resident[]>;
   deleteSyncedRecord: (id: string) => Promise<void>;
   saveResident: (param: Resident) => Promise<void>;
   loading: boolean;
@@ -171,6 +172,32 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     return scans;
   };
 
+  // Get all residents from the database
+  const getResidents = async (): Promise<Resident[]> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+
+    const result: Resident[] = await database.getAllAsync(
+      'SELECT * FROM residents'
+    );
+
+    const residents: Resident[] = [];
+    for (let i = 0; i < result.length; i++) {
+      const item = result[i];
+      residents.push({
+        id: item.id,
+        full_name: item.full_name,
+        phone_number: item.phone_number,
+        secret: item.secret,
+        assigned_units: item.assigned_units,
+        synced: Boolean(item.synced),
+        last_sync: item.last_sync,
+      });
+    }
+    return residents;
+  };
+
   const deleteSyncedRecord = async (id: string): Promise<void> => {
     if (database === null) {
       throw new Error('Database not initialized');
@@ -186,6 +213,7 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     database,
     saveScan,
     getScans,
+    getResidents,
     saveResident,
     deleteSyncedRecord,
     // addScans,
