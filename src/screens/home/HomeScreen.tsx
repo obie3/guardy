@@ -35,7 +35,7 @@ const HomeScreen = () => {
   const { syncResidents, syncStatus } = useSync();
   const { authState } = useAuth();
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { getVerifications, getResidents } = useDatabase();
+  const { getVerifications, getResidents, loading: dbLoading, error: dbError } = useDatabase();
   const [recentVerifications, setRecentVerifications] = useState<(Verification & { 
     residentName?: string;
     unit?: string;
@@ -97,6 +97,17 @@ const HomeScreen = () => {
   };
 
   const fetchRecentVerifications = async () => {
+    // Don't fetch if database is still initializing
+    if (dbLoading) {
+      console.log('Database is still initializing, skipping verification fetch');
+      return;
+    }
+
+    if (dbError) {
+      console.error('Database error:', dbError);
+      return;
+    }
+
     setLoading(true);
     try {
       const [verifications, residents] = await Promise.all([
@@ -128,17 +139,21 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch on initial load
+  // Fetch when database is ready
   useEffect(() => {
-    fetchRecentVerifications();
-  }, []);
+    if (!dbLoading && !dbError) {
+      fetchRecentVerifications();
+    }
+  }, [dbLoading, dbError]);
 
-  // Refetch when screen comes into focus
+  // Refetch when screen comes into focus and database is ready
   useFocusEffect(
     React.useCallback(() => {
-      console.log('HomeScreen focused, fetching recent verifications');
-      fetchRecentVerifications();
-    }, [])
+      if (!dbLoading && !dbError) {
+        console.log('HomeScreen focused, fetching recent verifications');
+        fetchRecentVerifications();
+      }
+    }, [dbLoading, dbError])
   );
 
   return (

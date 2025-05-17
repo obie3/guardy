@@ -13,6 +13,7 @@ type DatabaseContextValue = {
   saveVerification: SaveVerificationFunction;
   getVerifications: GetVerificationsFunction;
   getResidents: () => Promise<Resident[]>;
+  getResidentById: (id: string) => Promise<Resident | null>; // Added this line
   deleteSyncedRecord: (id: string) => Promise<void>;
   saveResident: (param: Resident) => Promise<void>;
   loading: boolean;
@@ -25,7 +26,7 @@ type DatabaseContextValue = {
 };
 
 // Create the context
-const DatabaseContext = createContext<DatabaseContextValue | undefined>(
+export const DatabaseContext = createContext<DatabaseContextValue | undefined>(
   undefined
 );
 
@@ -285,6 +286,18 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     }));
   };
 
+  // Get a resident by ID
+  const getResidentById = async (id: string): Promise<Resident | null> => {
+    if (database === null) {
+      throw new Error('Database not initialized');
+    }
+    const result = await database.getFirstAsync<Resident>(
+      'SELECT * FROM residents WHERE id = ?',
+      [id]
+    );
+    return result ? { ...result, synced: Boolean(result.synced) } : null;
+  };
+
   // Get all verifications from the database
   const getVerifications = async (): Promise<Verification[]> => {
     if (database === null) {
@@ -443,8 +456,9 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
     saveVerification,
     getVerifications,
     getResidents,
-    saveResident,
+    getResidentById, // Added this line
     deleteSyncedRecord,
+    saveResident, // Added missing saveResident
     startSync,
     updateSync,
     getLatestSync,
@@ -455,13 +469,29 @@ export const DatabaseProvider = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <DatabaseContext.Provider value={value}>
+    <DatabaseContext.Provider
+      value={{
+        database,
+        saveVerification,
+        getVerifications,
+        getResidents,
+        getResidentById,
+        deleteSyncedRecord,
+        saveResident, // Added missing saveResident
+        loading,
+        error,
+        startSync,
+        updateSync,
+        getLatestSync,
+        getSyncHistory,
+        clearDatabase,
+      }}
+    >
       {children}
     </DatabaseContext.Provider>
   );
 };
 
-// Hook to use the database context
 export const useDatabase = () => {
   const context = useContext(DatabaseContext);
   if (context === undefined) {

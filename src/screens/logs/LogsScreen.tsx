@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useContext } from 'react';
 import {
   View,
   Text,
@@ -6,52 +6,34 @@ import {
   FlatList,
   TouchableOpacity,
   RefreshControl,
+  ActivityIndicator,
+  Button, // Import Button
 } from 'react-native';
 import { useTheme } from '../../context/ThemeContext';
-import { LogEntry } from '../../types/database';
-import { Clock, Users, Timer, MapPin } from 'lucide-react-native';
+import { DatabaseContext } from '../../context/DatabaseContext';
+import { Verification, Resident, AuthDevice } from '../../types/database'; // Removed LogEntry from here
+import { Clock, Users, Timer, MapPin, AlertCircle } from 'lucide-react-native';
 
-// Dummy data
-const dummyLogs: LogEntry[] = [
-  {
-    id: '1',
-    residentName: 'John Smith',
-    unit: 'Block A-123',
-    visitDate: new Date(),
-    numberOfGuests: 3,
-    accessCode: 'ABC123',
-    validityPeriod: '2 hours',
-    status: 'verified',
-    timestamp: Date.now(),
-  },
-  {
-    id: '2',
-    residentName: 'Sarah Johnson',
-    unit: 'Block B-456',
-    visitDate: new Date(Date.now() - 3600000), // 1 hour ago
-    numberOfGuests: 2,
-    accessCode: 'DEF456',
-    validityPeriod: '4 hours',
-    status: 'pending',
-    timestamp: Date.now() - 3600000,
-  },
-  {
-    id: '3',
-    residentName: 'Michael Chang',
-    unit: 'Block C-789',
-    visitDate: new Date(Date.now() - 7200000), // 2 hours ago
-    numberOfGuests: 5,
-    accessCode: 'GHI789',
-    validityPeriod: '24 hours',
-    status: 'expired',
-    timestamp: Date.now() - 7200000,
-  },
-];
+// Define LogEntry type locally or import if defined elsewhere and suitable
+export interface LogEntry {
+  id: string;
+  residentName: string;
+  unit: string;
+  visitDate: Date;
+  numberOfGuests: number; // Keep for UI, even if defaulted
+  accessCode: string;
+  validityPeriod: string;
+  status: 'pending' | 'verified' | 'expired';
+  timestamp: number;
+}
 
 const LogsScreen = () => {
   const { theme } = useTheme();
+  const dbContext = useContext(DatabaseContext);
   const [refreshing, setRefreshing] = useState(false);
-  const [logs] = useState<LogEntry[]>(dummyLogs);
+  const [loading, setLoading] = useState(true);
+  const [logEntries, setLogEntries] = useState<LogEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const getStatusColor = (status: LogEntry['status']) => {
     switch (status) {
@@ -76,6 +58,97 @@ const LogsScreen = () => {
     });
   };
 
+  const getStatus = (verification: Verification): LogEntry['status'] => {
+    const now = Date.now();
+    const visitDate = verification.visit_date;
+    // validity_period in DB is in seconds, convert to milliseconds for comparison
+    const validityEnd = visitDate + (verification.validity_period * 1000);
+
+    if (now > validityEnd) {
+      return 'expired';
+    }
+    // Assuming all stored logs that are not expired are considered 'verified'
+    // A 'pending' state could be for future-dated entries if that logic is added
+    return 'verified';
+  };
+  
+  const formatValidityPeriod = (seconds: number): string => {
+    if (seconds < 60) return `${seconds} sec`;
+    if (seconds < 3600) return `${Math.floor(seconds / 60)} min`;
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    if (minutes === 0) return `${hours} hour${hours > 1 ? 's' : ''}`;
+    return `${hours}h ${minutes}m`;
+  };
+
+  const fetchLogs = useCallback(async () => {
+    if (!dbContext || !dbContext.database) {
+      setError("Database not available");
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    // Ensure dbContext is not undefined before accessing its properties
+    if (!dbContext.getVerifications || !dbContext.getResidentById) {
+        setError("Database functions not available");
+        setLoading(false);
+        setRefreshing(false);
+        return;
+    }
+
+    setLoading(true);
+    setError(null);
+    try {
+      // Ensure getVerifications and getResidentById are available on dbContext
+      const verifications = await dbContext.getVerifications();
+      const enrichedLogs: LogEntry[] = [];
+
+      for (const verification of verifications) {
+        let residentName = 'Unknown Resident';
+        let unit = 'N/A';
+        try {
+            const resident = await dbContext.getResidentById(verification.resident_id);
+            if (resident) {
+                residentName = resident.full_name;
+                unit = resident.assigned_units.split(',')[0]?.trim() || 'N/A';
+            }
+        } catch (e) {
+            console.warn(`Failed to fetch resident ${verification.resident_id}:`, e);
+        }
+        
+        enrichedLogs.push({
+          id: verification.id,
+          residentName,
+          unit,
+          visitDate: new Date(verification.visit_date),
+          numberOfGuests: 1, // Defaulting to 1 as it's not in Verification model
+          accessCode: verification.access_code,
+          validityPeriod: formatValidityPeriod(verification.validity_period),
+          status: getStatus(verification),
+          timestamp: verification.created_at,
+        });
+      }
+      setLogEntries(enrichedLogs);
+    } catch (e) {
+      console.error("Failed to fetch logs:", e);
+      setError("Failed to load logs. Pull to refresh.");
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [dbContext]);
+
+  useEffect(() => {
+    if (dbContext) { // Ensure dbContext is available before fetching
+        fetchLogs();
+    }
+  }, [fetchLogs, dbContext]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchLogs();
+  }, [fetchLogs]);
+
   const renderLogItem = ({ item }: { item: LogEntry }) => (
     <TouchableOpacity
       style={[
@@ -98,19 +171,19 @@ const LogsScreen = () => {
         <View
           style={[
             styles.statusBadge,
-            { backgroundColor: getStatusColor(item.status) + '20' },
+            { backgroundColor: getStatusColor(item.status) + '20' }, // Corrected: getStatusColor is defined
           ]}
         >
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: getStatusColor(item.status) },
+              { backgroundColor: getStatusColor(item.status) }, // Corrected
             ]}
           />
           <Text
             style={[
               styles.statusText,
-              { color: getStatusColor(item.status) },
+              { color: getStatusColor(item.status) }, // Corrected
             ]}
           >
             {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
@@ -122,7 +195,7 @@ const LogsScreen = () => {
         <View style={styles.detailItem}>
           <Clock size={16} color={theme.colors.text.secondary} />
           <Text style={[styles.detailText, { color: theme.colors.text.secondary }]}>
-            {formatDate(item.visitDate)}
+            {formatDate(item.visitDate)} {/* Corrected: formatDate is defined */}
           </Text>
         </View>
 
@@ -152,13 +225,24 @@ const LogsScreen = () => {
     </TouchableOpacity>
   );
 
-  const onRefresh = React.useCallback(() => {
-    setRefreshing(true);
-    // In a real app, fetch new logs here
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1000);
-  }, []);
+  if (loading && !refreshing && logEntries.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background.primary }]}>
+        <ActivityIndicator size="large" color={theme.colors.primary} />
+        <Text style={{ marginTop: 10, color: theme.colors.text.primary }}>Loading logs...</Text>
+      </View>
+    );
+  }
+
+  if (error && logEntries.length === 0) {
+    return (
+      <View style={[styles.container, styles.centered, { backgroundColor: theme.colors.background.primary }]}>
+        <AlertCircle size={48} color={theme.colors.error} />
+        <Text style={[styles.errorText, { color: theme.colors.text.primary, marginTop: 10 }]}>{error}</Text>
+        <Button title="Retry" onPress={fetchLogs} color={theme.colors.primary} />
+      </View>
+    );
+  }
 
   return (
     <View
@@ -167,8 +251,8 @@ const LogsScreen = () => {
         { backgroundColor: theme.colors.background.primary },
       ]}
     >
-      {/* <FlatList
-        data={logs}
+      <FlatList
+        data={logEntries}
         renderItem={renderLogItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContent}
@@ -181,13 +265,15 @@ const LogsScreen = () => {
           />
         }
         ListEmptyComponent={() => (
-          <View style={styles.emptyContainer}>
-            <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
-              No logs available
-            </Text>
-          </View>
+          !loading && (
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: theme.colors.text.secondary }]}>
+                No logs available
+              </Text>
+            </View>
+          )
         )}
-      /> */}
+      />
     </View>
   );
 };
@@ -198,11 +284,20 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    flexGrow: 1, // Ensures emptyContainer can center itself if list is empty
   },
   logItem: {
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   logHeader: {
     flexDirection: 'row',
@@ -236,10 +331,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   statusDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    marginRight: 4,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6,
   },
   statusText: {
     fontSize: 12,
@@ -248,7 +343,7 @@ const styles = StyleSheet.create({
   logDetails: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: 16, // Increased gap for better spacing
     marginBottom: 12,
   },
   detailItem: {
@@ -256,7 +351,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   detailText: {
-    fontSize: 14,
+    fontSize: 13, // Slightly smaller for detail text
     fontFamily: 'Poppins-Regular',
     marginLeft: 6,
   },
@@ -266,15 +361,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    marginTop: 8, // Added margin for separation
   },
   codeLabel: {
-    fontSize: 14,
+    fontSize: 13,
     fontFamily: 'Poppins-Regular',
     marginRight: 8,
   },
   codeText: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
+    fontSize: 14, // Keep code text slightly larger
+    fontFamily: 'Poppins-SemiBold', // Make code stand out
   },
   emptyContainer: {
     flex: 1,
@@ -286,6 +382,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Poppins-Regular',
     textAlign: 'center',
+  },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: {
+    fontSize: 16,
+    fontFamily: 'Poppins-Regular',
+    textAlign: 'center',
+    marginBottom: 10,
   },
 });
 
