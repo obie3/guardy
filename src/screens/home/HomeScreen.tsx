@@ -3,7 +3,7 @@ import { useDatabase } from '../../context/DatabaseContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
-import { QrCode, Keyboard, RefreshCw, Info, ArrowRight, Clock } from 'lucide-react-native';
+import { QrCode, Keyboard, RefreshCw, Info, ArrowRight, Clock, Users } from 'lucide-react-native';
 import { 
   View, 
   Text, 
@@ -41,6 +41,7 @@ const HomeScreen = () => {
     unit?: string;
   })[]>([]);
   const [loading, setLoading] = useState(false);
+  const [residentCount, setResidentCount] = useState<number | null>(null);
 
   const handleSync = async () => {
     try {
@@ -114,6 +115,7 @@ const HomeScreen = () => {
         getVerifications(),
         getResidents()
       ]);
+      setResidentCount(residents.length);
       
       console.log('Fetched verifications:', verifications.length);
       console.log('Fetched residents:', residents.length);
@@ -178,27 +180,29 @@ const HomeScreen = () => {
           </View>
         </View>
 
-         {/* Device Info Section */}
+         {/* Device & Estate Info Section */}
         <View style={[styles.sectionContainer, { backgroundColor: theme.colors.background.secondary }]}>
-          <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
-            Device Information
-          </Text>
-          
-          <View style={styles.deviceInfoRow}>
-            <View>
-              <Text style={[styles.deviceLabel, { color: theme.colors.text.secondary }]}>
-                Device ID
+          <View style={styles.deviceInfoTopRow}>
+            <View style={styles.deviceInfoMain}>
+              <Text style={[styles.primaryDeviceInfoText, { color: theme.colors.text.primary }]}>
+                {authState.deviceInfo?.name || authState.deviceCode || 'Device Not Registered'}
+                {authState.deviceInfo?.name && authState.deviceCode && (
+                  <Text style={[styles.deviceIdText, { color: theme.colors.text.secondary }]}>
+                    {' '}(ID: {authState.deviceCode})
+                  </Text>
+                )}
               </Text>
-              <Text style={[styles.deviceId, { color: theme.colors.text.primary }]}>
-                {authState.deviceCode || 'Not registered'}
-              </Text>
+              {authState.estateInfo && (
+                <Text style={[styles.estateName, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                  {authState.estateInfo.name}
+                </Text>
+              )}
             </View>
-            
             <TouchableOpacity
-                style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
-                onPress={handleSync}
-                disabled={syncStatus.isSyncing}
-              >
+              style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
+              onPress={handleSync}
+              disabled={syncStatus.isSyncing}
+            >
               <RefreshCw
                 size={18}
                 color={theme.colors.primary}
@@ -209,8 +213,33 @@ const HomeScreen = () => {
               </Text>
             </TouchableOpacity>
           </View>
+
+          {authState.estateInfo?.address && (
+            <Text style={[styles.estateAddress, { color: theme.colors.text.secondary, marginTop: 8 }]}>
+              {authState.estateInfo.address}
+            </Text>
+          )}
+
+          {/* Resident Count */}
+          {authState.estateInfo && residentCount !== null && (
+            <View style={[
+              styles.detailRow,
+              { marginTop: authState.estateInfo?.address ? 4 : 8 }
+            ]}>
+              <Users size={14} color={theme.colors.text.secondary} />
+              <Text style={[styles.detailText, { color: theme.colors.text.secondary, marginLeft: 6 }]}>
+                {residentCount} Registered Resident{residentCount === 1 ? '' : 's'}
+              </Text>
+            </View>
+          )}
           
-          <Text style={[styles.lastSyncText, { color: theme.colors.text.tertiary }]}>
+          <Text style={[
+            styles.lastSyncText, 
+            { 
+              color: theme.colors.text.tertiary, 
+              marginTop: (authState.estateInfo?.address || (authState.estateInfo && residentCount !== null)) ? 4 : 8 
+            }
+          ]}>
             {syncStatus.lastSyncTime
               ? `Last synced: ${formatDate(syncStatus.lastSyncTime)}`
               : 'Not synced yet'}
@@ -575,28 +604,50 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Regular',
     textAlign: 'center',
   },
-  deviceInfoRow: {
+  deviceInfoTopRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
+    alignItems: 'flex-start',
+    marginBottom: 8,
   },
-  deviceLabel: {
-    fontSize: 14,
-    fontFamily: 'Poppins-Medium',
-    marginBottom: 4,
+  deviceInfoMain: {
+    flex: 1,
+    marginRight: 8,
   },
-  deviceId: {
-    fontSize: 16,
+  primaryDeviceInfoText: { // Renamed from deviceId, now includes secondary info
+    fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
+    // marginBottom: 2, // Removed, spacing handled by elements below or their own marginTop
+  },
+  deviceIdText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  detailText: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  estateName: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    // marginTop is now applied inline dynamically
+  },
+  estateAddress: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+    // marginBottom: 8, // Removed to use consistent marginTop logic
   },
   syncButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginBottom: 16,
+    // marginBottom: 16, // Removed to align with new layout
   },
   syncButtonText: {
     fontSize: 16,
@@ -634,6 +685,18 @@ const styles = StyleSheet.create({
   },
   helpText: {
     fontSize: 14,
+    fontFamily: 'Poppins-Regular',
+  },
+  infoRow: {
+    marginBottom: 8,
+  },
+  infoLabel: {
+    fontSize: 14,
+    fontFamily: 'Poppins-Medium',
+    marginBottom: 2,
+  },
+  infoValue: {
+    fontSize: 16,
     fontFamily: 'Poppins-Regular',
   },
 });
