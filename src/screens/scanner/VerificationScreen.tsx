@@ -390,13 +390,16 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         )}
 
         <View style={styles.buttonContainer}>
-          <TouchableOpacity
-            style={styles.viewDetailsButton}
-            onPress={handleViewGuestDetails}
-          >
-            <Ionicons name="information-circle-outline" size={20} color="#4169E1" style={styles.buttonIcon} />
-            <Text style={styles.viewDetailsText}>View Guest Details</Text>
-          </TouchableOpacity>
+          {/* Conditionally render the View Guest Details button */}
+          {!(guestInfo && !loadingGuestInfo && !guestInfoError) && (
+            <TouchableOpacity
+              style={styles.viewDetailsButton}
+              onPress={handleViewGuestDetails}
+            >
+              <Ionicons name="information-circle-outline" size={20} color="#4169E1" style={styles.buttonIcon} />
+              <Text style={styles.viewDetailsText}>View Guest Details</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity
             style={styles.doneButton}

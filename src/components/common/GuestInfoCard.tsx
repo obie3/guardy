@@ -61,7 +61,7 @@ export const GuestInfoCard: React.FC<GuestInfoCardProps> = ({
             <User size={16} color={theme.colors.text.secondary} />
           </View>
           <View style={styles.textContainer}>
-            <Text style={[styles.label, { color: theme.colors.text.secondary }]}>Full Name</Text>
+            <Text style={[styles.label, { color: theme.colors.text.secondary }]}>Name</Text>
             <Text style={[styles.value, { color: theme.colors.text.primary }]}>
               {guestInfo.full_name}
             </Text>
@@ -103,17 +103,17 @@ export const GuestInfoCard: React.FC<GuestInfoCardProps> = ({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 16,
-    padding: 20,
-    marginHorizontal: 16,
-    marginVertical: 8,
+    padding: 16, // Adjusted padding
+    width: '100%', // Ensure the card takes full width
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2, // Adjusted shadow offset
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    shadowOpacity: 0.05, // Adjusted shadow opacity
+    shadowRadius: 4, // Adjusted shadow radius
+    elevation: 3, // Adjusted elevation
+    marginBottom: 24, // Added to match the spacing of the card above it
   },
   header: {
     flexDirection: 'row',

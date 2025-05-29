@@ -185,12 +185,14 @@ const HomeScreen = () => {
           <View style={styles.deviceInfoTopRow}>
             <View style={styles.deviceInfoMain}>
               <Text style={[styles.primaryDeviceInfoText, { color: theme.colors.text.primary }]}>
-                {authState.deviceInfo?.name || authState.deviceCode || 'Device Not Registered'}
-                {authState.deviceInfo?.name && authState.deviceCode && (
-                  <Text style={[styles.deviceIdText, { color: theme.colors.text.secondary }]}>
-                    {' '}(ID: {authState.deviceCode})
-                  </Text>
-                )}
+                <>{/* Explicit fragment wrapping */}
+                  {authState.deviceInfo?.name || authState.deviceCode || 'Device Not Registered'}
+                  {authState.deviceInfo?.name && authState.deviceCode && (
+                    <Text style={[styles.deviceIdText, { color: theme.colors.text.secondary }]}>
+                      {' '}(ID: {authState.deviceCode})
+                    </Text>
+                  )}
+                </>{/* End of explicit fragment wrapping */}
               </Text>
               {authState.estateInfo && (
                 <Text style={[styles.estateName, { color: theme.colors.text.secondary, marginTop: 4 }]}>
@@ -326,18 +328,24 @@ const HomeScreen = () => {
                 >
                   <View style={styles.verificationInfo}>
                     <View style={styles.verificationMain}>
-                      <View style={styles.verificationNameContainer}>
-                        <Text style={[styles.verificationName, { color: theme.colors.text.primary }]}>
-                          {verification.residentName || 'Unknown Resident'}
-                        </Text>
-                        {verification.unit ? (
-                          <View style={[styles.unitTag, { backgroundColor: theme.colors.background.tertiary }]}>
-                            <Text style={[styles.unitText, { color: theme.colors.text.secondary }]}>
-                              Unit {verification.unit}
-                            </Text>
-                          </View>
-                        ) : null}
-                      </View>
+                      <View style={styles.verificationPrimaryInfo}> {/* New wrapper View */}
+                        <View style={styles.verificationNameContainer}>
+                          <Text 
+                            style={[styles.verificationName, { color: theme.colors.text.primary }]}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                          >
+                            {verification.residentName || 'Unknown Resident'}
+                          </Text>
+                          {verification.unit ? (
+                            <View style={[styles.unitTag, { backgroundColor: theme.colors.background.tertiary }]}>
+                              <Text style={[styles.unitText, { color: theme.colors.text.secondary }]}>
+                                Unit {verification.unit}
+                              </Text>
+                            </View>
+                          ) : null}
+                        </View>
+                      </View> {/* End of verificationPrimaryInfo */}
                       <Text style={[styles.verificationTime, { color: theme.colors.text.secondary }]}>
                         {formatRelativeTime(verification.visit_date)}
                       </Text>
@@ -522,6 +530,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   verificationMain: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 8,
   },
   verificationNameContainer: {
@@ -529,7 +540,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 4,
   },
   verificationName: {
     fontSize: 16,
@@ -538,7 +548,6 @@ const styles = StyleSheet.create({
   verificationTime: {
     fontSize: 13,
     fontFamily: 'Poppins-Regular',
-    marginTop: 2,
   },
   unitTag: {
     paddingHorizontal: 8,
@@ -552,7 +561,7 @@ const styles = StyleSheet.create({
   verificationDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    justifyContent: 'space-between', // Changed from gap: 12
     marginTop: 4,
   },
   durationTag: {
@@ -579,6 +588,10 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Poppins-Medium',
     letterSpacing: 0.5,
+  },
+  verificationPrimaryInfo: { // New style
+    flex: 1,
+    marginRight: 8, // Space between name/unit block and time
   },
   emptyStateContainer: {
     alignItems: 'center',
