@@ -14,9 +14,16 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RouteProp, useRoute, CompositeNavigationProp } from '@react-navigation/native';
+import {
+  RouteProp,
+  useRoute,
+  CompositeNavigationProp,
+} from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
+import {
+  MainTabParamList,
+  ScannerStackParamList,
+} from '../../types/navigation';
 import { useDatabase } from '../../context/DatabaseContext';
 import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
@@ -42,12 +49,13 @@ type VerificationScreenProps = {
 export const VerificationScreen: React.FC<VerificationScreenProps> = ({
   navigation,
 }) => {
+  let isMounted = useRef<boolean>(false);
   const route = useRoute<VerificationScreenRouteProp>();
   const { access_code = '' } = route.params;
   const { getResidents, saveVerification } = useDatabase();
   const { authState } = useAuth();
   const { backgroundSync } = useSync();
-  
+
   const [verifying, setVerifying] = useState(true);
   const [result, setResult] = useState<VerificationResult | null>(null);
   const [guestInfo, setGuestInfo] = useState<GuestInfo | null>(null);
@@ -57,131 +65,146 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
 
   // Verify the token
   useEffect(() => {
-    // Keep track of mounted state
-    let isMounted = true;
-    
-    // Verify the token
-    const verifyToken = async () => {
-      try {
-        const residents = await getResidents();
-        console.log(`Fetched ${residents.length} residents for verification`);
-        
-        // If unmounted, don't continue
-        if (!isMounted) return;
-        
-        if (residents.length === 0) {
-          setResult({
-            success: false,
-            message: 'No residents data available'
-          });
-          setVerifying(false);
-          triggerErrorFeedback();
-          Alert.alert(
-            'No Residents Found',
-            'Please sync the app to download resident data.'
-          );
-          return;
-        }
-        
-        // Quick format validation first
-        if (!/^\d{6}$/.test(access_code)) {
-          setResult({
-            success: false,
-            message: 'Invalid token format.\nPlease enter exactly 6 digits.'
-          });
-          setVerifying(false);
-          triggerErrorFeedback();
-          return;
-        }
-        
-        // Verify the token against all residents
-        const verificationResult = await verifyTOTP(access_code, residents);
-        
-        // If unmounted, don't continue
-        if (!isMounted) return;
-        
-        console.log('Verification result:', verificationResult);
-
-        // If verification was successful, save the verification record
-        if (verificationResult.success && verificationResult.resident && verificationResult.visit) {
-          try {
-            await saveVerification({
-              resident_id: verificationResult.resident.id,
-              access_code: access_code,
-              visit_date: verificationResult.visit.visitDate.getTime(),
-              validity_period: verificationResult.visit.validityPeriod,
-              created_at: Date.now()
-            });
-
-            // Trigger background sync after successful verification
-            if (authState.deviceInfo?.id) {
-              backgroundSync(authState.deviceInfo.id).catch(console.error);
-            }
-
-          } catch (error) {
-            console.error('Failed to save verification:', error);
-            // Don't fail the verification if saving fails
-          }
-        }
-
-        setResult(verificationResult);
-        setVerifying(false);
-      } catch (error) {
-        // If unmounted, don't continue
-        if (!isMounted) return;
-        
-        console.error('Error verifying token:', error);
-        setResult({
-          success: false,
-          message: 'Error verifying token'
-        });
-        setVerifying(false);
-      }
-    };
-    
+    isMounted.current = true;
     verifyToken();
-    
     // Cleanup function
     return () => {
-      isMounted = false;
+      isMounted.current = false;
     };
-  }, [access_code, getResidents, saveVerification, authState.deviceInfo?.id, backgroundSync]);
+  }, [
+    access_code,
+    getResidents,
+    saveVerification,
+    authState.deviceInfo?.id,
+    backgroundSync,
+  ]);
+
+  // Reset verification state if navigation is canceled
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', () => {
+      setVerifying(false);
+      setResult(null);
+    });
+
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
-    let isMounted = true;
-    const loadGuestInfo = async () => {
-      if (!result?.success || !result.resident?.id) return;
-      
-      setLoadingGuestInfo(true);
-      setGuestInfoError(null);
-      
-      try {
-        const response = await fetchGuestInformation(access_code, result.resident.id);
-        if (!isMounted) return;
-
-        if (response.success && response.data) {
-          setGuestInfo(response.data);
-        } else {
-          setGuestInfoError(response.error || 'Failed to load guest information');
-        }
-      } catch (error) {
-        if (!isMounted) return;
-        setGuestInfoError('An unexpected error occurred');
-      } finally {
-        if (isMounted) {
-          setLoadingGuestInfo(false);
-        }
-      }
-    };
-
     if (result?.success) {
       loadGuestInfo();
     }
 
     return () => {
-      isMounted = false;
+      isMounted.current = false;
     };
   }, [result, access_code]);
+
+  // Verify the token
+  const verifyToken = async () => {
+    try {
+      const residents = await getResidents();
+      console.log(`Fetched ${residents.length} residents for verification`);
+
+      // If unmounted, don't continue
+      if (!isMounted.current) return;
+
+      if (residents.length === 0) {
+        setResult({
+          success: false,
+          message: 'No residents data available',
+        });
+        setVerifying(false);
+        triggerErrorFeedback();
+        Alert.alert(
+          'No Residents Found',
+          'Please sync the app to download resident data.'
+        );
+        return;
+      }
+
+      // Quick format validation first
+      if (!/^\d{6}$/.test(access_code)) {
+        setResult({
+          success: false,
+          message: 'Invalid token format.\nPlease enter exactly 6 digits.',
+        });
+        setVerifying(false);
+        triggerErrorFeedback();
+        return;
+      }
+
+      // Verify the token against all residents
+      const verificationResult = await verifyTOTP(access_code, residents);
+      // If unmounted, don't continue
+      if (!isMounted.current) return;
+
+      console.log('Verification result:', verificationResult);
+
+      // If verification was successful, save the verification record
+      if (
+        verificationResult.success &&
+        verificationResult.resident &&
+        verificationResult.visit
+      ) {
+        try {
+          await saveVerification({
+            resident_id: verificationResult.resident.id,
+            access_code: access_code,
+            visit_date: verificationResult.visit.visitDate.getTime(),
+            validity_period: verificationResult.visit.validityPeriod,
+            created_at: Date.now(),
+          });
+
+          // Trigger background sync after successful verification
+          if (authState.deviceInfo?.id) {
+            backgroundSync(authState.deviceInfo.id).catch(console.error);
+          }
+        } catch (error) {
+          console.error('Failed to save verification:', error);
+          // Don't fail the verification if saving fails
+        }
+      }
+
+      setResult(verificationResult);
+      setVerifying(false);
+    } catch (error) {
+      // If unmounted, don't continue
+      if (!isMounted.current) return;
+
+      console.error('Error verifying token:', error);
+      setResult({
+        success: false,
+        message: 'Error verifying token',
+      });
+      setVerifying(false);
+    }
+  };
+
+  const loadGuestInfo = async () => {
+    if (!result?.success || !result.resident?.id) return;
+
+    setLoadingGuestInfo(true);
+    setGuestInfoError(null);
+
+    try {
+      const response = await fetchGuestInformation(
+        access_code,
+        result.resident.id
+      );
+      if (!isMounted.current) return;
+
+      if (response.success && response.data) {
+        setGuestInfo(response.data);
+      } else {
+        setGuestInfoError(response.error || 'Failed to load guest information');
+      }
+    } catch (error) {
+      if (!isMounted.current) return;
+      setGuestInfoError('An unexpected error occurred');
+    } finally {
+      if (isMounted.current) setLoadingGuestInfo(false);
+    }
+  };
 
   const handleGoBack = (): void => {
     // Reset state and navigate back to input screen
@@ -209,24 +232,14 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
     navigation.navigate('EntercodeScreen');
   };
 
-  // Reset verification state if navigation is canceled
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', () => {
-      setVerifying(false);
-      setResult(null);
-    });
-
-    return unsubscribe;
-  }, [navigation]);
-
   // Format validity period for display
   const formatValidityPeriod = (seconds?: number): string => {
     if (!seconds) return 'N/A';
-    
+
     if (seconds === 10) return '10 seconds (Demo)';
     if (seconds === 1800) return '30 minutes';
     if (seconds === 7200) return '2 hours';
-    
+
     return `${seconds} seconds`;
   };
 
@@ -236,7 +249,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
     return date.toLocaleDateString('en-GB', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
     });
   };
 
@@ -264,7 +277,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         toValue: 1,
         duration: 400,
         useNativeDriver: true,
-      })
+      }),
     ]).start();
   };
 
@@ -282,19 +295,21 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
 
     if (!result.success) {
       return (
-        <Animated.View 
+        <Animated.View
           style={[
-            styles.verificationResult, 
+            styles.verificationResult,
             styles.verificationError,
-            { 
+            {
               opacity: fadeAnim,
-              transform: [{ 
-                translateY: fadeAnim.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [20, 0]
-                }) 
-              }] 
-            }
+              transform: [
+                {
+                  translateY: fadeAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [20, 0],
+                  }),
+                },
+              ],
+            },
           ]}
         >
           <View style={styles.errorIconContainer}>
@@ -304,7 +319,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
           <Text style={styles.errorText}>
             The token you scanned is not valid. Please try scanning again.
           </Text>
-          <TouchableOpacity 
+          <TouchableOpacity
             style={styles.retryButton}
             onPress={() => {
               resetVerification();
@@ -370,8 +385,8 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         </View>
 
         {/* Guest Information Section */}
-        {result.success && (
-          guestInfo ? (
+        {result.success &&
+          (guestInfo ? (
             <GuestInfoCard
               guestInfo={guestInfo}
               isLoading={loadingGuestInfo}
@@ -382,12 +397,11 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
               guestInfo={{
                 full_name: '',
                 phone_number: '',
-                group_size: 0
+                group_size: 0,
               }}
               isLoading={true}
             />
-          ) : null
-        )}
+          ) : null)}
 
         <View style={styles.buttonContainer}>
           {/* Conditionally render the View Guest Details button */}
@@ -396,15 +410,17 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
               style={styles.viewDetailsButton}
               onPress={handleViewGuestDetails}
             >
-              <Ionicons name="information-circle-outline" size={20} color="#4169E1" style={styles.buttonIcon} />
+              <Ionicons
+                name="information-circle-outline"
+                size={20}
+                color="#4169E1"
+                style={styles.buttonIcon}
+              />
               <Text style={styles.viewDetailsText}>View Guest Details</Text>
             </TouchableOpacity>
           )}
 
-          <TouchableOpacity
-            style={styles.doneButton}
-            onPress={handleDone}
-          >
+          <TouchableOpacity style={styles.doneButton} onPress={handleDone}>
             <Text style={styles.doneButtonText}>Done</Text>
           </TouchableOpacity>
         </View>
@@ -421,7 +437,7 @@ export const VerificationScreen: React.FC<VerificationScreenProps> = ({
         <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
 
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -457,9 +473,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
-  scrollView: {
-    flex: 1,
-  },
+
   scrollContent: {
     flexGrow: 1,
     paddingBottom: 24, // Add padding at bottom for better scrolling experience
@@ -496,19 +510,19 @@ const styles = StyleSheet.create({
     borderColor: '#DDDDDD',
     borderRadius: 8,
     paddingVertical: 16,
-    paddingHorizontal: 32,  // Increased horizontal padding
+    paddingHorizontal: 32, // Increased horizontal padding
     alignItems: 'center',
     justifyContent: 'center',
-    width: '100%',  // Use width instead of minWidth
-    marginHorizontal: 0,  // Remove any horizontal margin
+    width: '100%', // Use width instead of minWidth
+    marginHorizontal: 0, // Remove any horizontal margin
   },
   tokenText: {
     fontFamily: 'Poppins-SemiBold',
-    fontSize: 32,  // Increased font size
+    fontSize: 32, // Increased font size
     color: '#202733',
-    letterSpacing: 12,  // Increased letter spacing
+    letterSpacing: 12, // Increased letter spacing
     textAlign: 'center',
-    width: '100%',  // Ensure text takes full width
+    width: '100%', // Ensure text takes full width
   },
   loadingContainer: {
     marginTop: 20,
@@ -529,7 +543,7 @@ const styles = StyleSheet.create({
     marginTop: 20,
     backgroundColor: '#FFFFFF',
     width: '100%',
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -587,7 +601,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 24,
     width: '100%',
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
@@ -708,7 +722,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -734,7 +748,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 8,
     marginTop: 20,
-    shadowColor: "#000",
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
@@ -752,7 +766,7 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 40,
-  },
+  // scrollContent: {
+  //   paddingBottom: 40,
+  // },
 });

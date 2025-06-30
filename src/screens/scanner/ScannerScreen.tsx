@@ -7,10 +7,16 @@ import {
   Platform,
   Alert,
 } from 'react-native';
-import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  CompositeNavigationProp,
+} from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
-import { MainTabParamList, ScannerStackParamList } from '../../types/navigation';
+import {
+  MainTabParamList,
+  ScannerStackParamList,
+} from '../../types/navigation';
 import { BarCodeScannerResult } from 'expo-barcode-scanner';
 import { useTheme } from '../../context/ThemeContext';
 import { useDatabase } from '../../context/DatabaseContext';
@@ -60,10 +66,12 @@ export const ScannerScreen = () => {
       } catch (error) {
         console.log('Haptics not available:', error);
       }
-    }      // Navigate to verification screen
-      navigation.navigate('VerificationScreen', {
-        access_code: data,
-      });
+    }
+    const parsedParams = JSON.parse(data);
+    // Navigate to verification screen
+    navigation.navigate('VerificationScreen', {
+      access_code: parsedParams.code,
+    });
   };
 
   if (hasPermission === null) {
