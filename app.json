@@ -19,7 +19,8 @@
       "expo-secure-store",
       "expo-barcode-scanner",
       "expo-sqlite",
-      "expo-font"
+      "expo-font",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
