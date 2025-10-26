@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, ReactNode, useEffect, useRef } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  ReactNode,
+  useEffect,
+  useRef,
+} from 'react';
 import { useDatabase } from './DatabaseContext';
 import { supabase } from '../services/supabase';
 import { Resident, AuthDevice } from '../types/database';
@@ -50,9 +57,9 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       try {
         const lastSyncTime = await AsyncStorage.getItem(LAST_SYNC_KEY);
         if (lastSyncTime) {
-          setSyncStatus(prev => ({
+          setSyncStatus((prev) => ({
             ...prev,
-            lastSyncTime: parseInt(lastSyncTime, 10)
+            lastSyncTime: parseInt(lastSyncTime, 10),
           }));
         }
       } catch (error) {
@@ -65,8 +72,10 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
   // Save last sync time whenever it changes
   useEffect(() => {
     if (syncStatus.lastSyncTime) {
-      AsyncStorage.setItem(LAST_SYNC_KEY, syncStatus.lastSyncTime.toString())
-        .catch(error => console.error('Error saving last sync time:', error));
+      AsyncStorage.setItem(
+        LAST_SYNC_KEY,
+        syncStatus.lastSyncTime.toString()
+      ).catch((error) => console.error('Error saving last sync time:', error));
     }
   }, [syncStatus.lastSyncTime]);
 
@@ -87,14 +96,17 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
     if (syncStatus.isSyncing) {
       return;
     }
-
+    console.log('Starting residents sync for estate:', estateId);
     // Check if enough time has passed since last sync
     const now = Date.now();
-    if (syncStatus.lastSyncTime && (now - syncStatus.lastSyncTime) < SYNC_INTERVAL) {
+    if (
+      syncStatus.lastSyncTime &&
+      now - syncStatus.lastSyncTime < SYNC_INTERVAL
+    ) {
       console.log('Skipping sync - too soon since last sync');
       return;
     }
-
+    console.log('Proceeding with sync - sufficient time elapsed');
     setSyncStatus((prev) => ({
       ...prev,
       isSyncing: true,
@@ -103,7 +115,7 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       currentItem: 0,
       totalItems: 0,
     }));
-
+    console;
     // Start sync operation in history
     let syncId: string;
     try {
@@ -112,35 +124,47 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       console.error('Failed to start sync:', error);
       return;
     }
-
+    console.log('Sync operation started with ID:', syncId);
     try {
       // Check network connectivity before proceeding
+      console.log('Checking network connectivity...');
       const networkState = await NetInfo.fetch();
       if (!networkState.isConnected) {
         throw new Error('No network connectivity');
       }
+      console.log('Network connected, proceeding with sync');
 
       // Fetch residents from Supabase
-      const { data: residents, error } = await supabase
-        .rpc('get_estate_residents', {
-          device_id: estateId
-        });
+      const { data: residents, error } = await supabase.rpc(
+        'get_estate_residents',
+        {
+          device_id: estateId,
+        }
+      );
+      console.log('Fetched residents from server:', residents + estateId);
 
-      if (error) throw error;
+      if (error) throw error.stack || error.message;
+      console.log('Residents data received:', residents);
 
       if (!residents) {
         throw new Error('No residents data received');
       }
+      console.log(
+        `Starting to process ${residents.length} residents for sync...`
+      );
 
       setSyncStatus((prev) => ({
         ...prev,
         totalItems: residents.length,
       }));
+      console.log('Total residents to sync set in status');
 
       // Process each resident
       for (let i = 0; i < residents.length; i++) {
+        console.log(`Syncing resident ${i + 1} of ${residents.length}`);
         const resident = residents[i];
         try {
+          console.log(`Processing resident ${i + 1}:`, resident);
           await saveResident({
             id: resident.id,
             full_name: resident.full_name,
@@ -150,7 +174,7 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
             synced: true,
             last_sync: now,
           });
-
+          console.log(`Resident ${resident.id} saved successfully`);
           setSyncStatus((prev) => ({
             ...prev,
             currentItem: i + 1,
@@ -161,9 +185,14 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
           throw err;
         }
       }
+      console.log('All residents synced successfully');
 
       // Update sync status on completion
-      await updateSync(syncId, { status: 'success', itemsSynced: residents.length });
+      await updateSync(syncId, {
+        status: 'success',
+        itemsSynced: residents.length,
+      });
+      console.log('Sync operation updated to success in history');
       setSyncStatus((prev) => ({
         ...prev,
         isSyncing: false,
@@ -174,8 +203,9 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       // Schedule next sync
       scheduleSyncTimeout(estateId);
     } catch (error) {
-      console.error('Sync error:', error);
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      console.error('Sync error2:', error);
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error occurred';
       if (syncId) {
         await updateSync(syncId, { status: 'failed', errorMessage });
       }
@@ -233,9 +263,9 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       }
 
       // Reset last sync time to force immediate sync
-      setSyncStatus(prev => ({
+      setSyncStatus((prev) => ({
         ...prev,
-        lastSyncTime: null
+        lastSyncTime: null,
       }));
 
       // Perform sync
@@ -247,8 +277,12 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
 
   // Network connectivity monitoring
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      if (state.isConnected && lastDeviceIdRef.current && !syncStatus.isSyncing) {
+    const unsubscribe = NetInfo.addEventListener((state) => {
+      if (
+        state.isConnected &&
+        lastDeviceIdRef.current &&
+        !syncStatus.isSyncing
+      ) {
         // Don't sync immediately on connection, add a small delay
         setTimeout(() => {
           backgroundSync(lastDeviceIdRef.current!);

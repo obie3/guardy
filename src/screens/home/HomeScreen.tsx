@@ -3,25 +3,36 @@ import { useDatabase } from '../../context/DatabaseContext';
 import { useTheme } from '../../context/ThemeContext';
 import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
-import { QrCode, Keyboard, RefreshCw, Info, ArrowRight, Clock, Users } from 'lucide-react-native';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  TouchableOpacity, 
-  ScrollView, 
-  SafeAreaView, 
-  StatusBar, 
+import {
+  QrCode,
+  Keyboard,
+  RefreshCw,
+  Info,
+  ArrowRight,
+  Clock,
+  Users,
+} from 'lucide-react-native';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  ScrollView,
+  StatusBar,
   Dimensions,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { SyncProgress } from '../../components/common/SyncProgress';
-import { useNavigation, CompositeNavigationProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  CompositeNavigationProp,
+} from '@react-navigation/native';
 import { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { MainTabParamList, RootStackParamList } from '../../types/navigation';
 import { Verification } from '../../types/database';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type HomeScreenNavigationProp = CompositeNavigationProp<
   BottomTabNavigationProp<MainTabParamList, 'Home'>,
@@ -35,29 +46,36 @@ const HomeScreen = () => {
   const { syncResidents, syncStatus } = useSync();
   const { authState } = useAuth();
   const navigation = useNavigation<HomeScreenNavigationProp>();
-  const { getVerifications, getResidents, loading: dbLoading, error: dbError } = useDatabase();
-  const [recentVerifications, setRecentVerifications] = useState<(Verification & { 
-    residentName?: string;
-    unit?: string;
-  })[]>([]);
+  const {
+    getVerifications,
+    getResidents,
+    loading: dbLoading,
+    error: dbError,
+  } = useDatabase();
+  const [recentVerifications, setRecentVerifications] = useState<
+    (Verification & {
+      residentName?: string;
+      unit?: string;
+    })[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [residentCount, setResidentCount] = useState<number | null>(null);
 
   const handleSync = async () => {
     try {
-      // You should get the estate_id from authState or device info
       await syncResidents(authState.deviceInfo?.id || '');
-    } catch (error) {
-      console.error('Sync error:', error);
+    } catch (error: any) {
+      console.error('Sync errors:', error.message);
     }
   };
 
-  // Format date with relative time if recent, otherwise full date
   const formatDate = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
+    const diffInMinutes = Math.floor(
+      (now.getTime() - date.getTime()) / (1000 * 60)
+    );
+
     if (diffInMinutes < 1) {
       return 'Just now';
     } else if (diffInMinutes < 60) {
@@ -73,7 +91,7 @@ const HomeScreen = () => {
   const formatRelativeTime = (timestamp: number): string => {
     const now = Date.now();
     const diffInMinutes = Math.floor((now - timestamp) / (1000 * 60));
-    
+
     if (diffInMinutes < 1) return 'Just now';
     if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
     if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
@@ -86,21 +104,20 @@ const HomeScreen = () => {
     return '2h';
   };
 
-  // For debugging sync status
   React.useEffect(() => {
     console.log('Sync status:', { lastSyncTime: syncStatus.lastSyncTime });
   }, [syncStatus.lastSyncTime]);
 
-  // Get first unit from comma-separated list
   const getFirstUnit = (units?: string): string => {
     if (!units) return '';
     return units.split(',')[0].trim();
   };
 
   const fetchRecentVerifications = async () => {
-    // Don't fetch if database is still initializing
     if (dbLoading) {
-      console.log('Database is still initializing, skipping verification fetch');
+      console.log(
+        'Database is still initializing, skipping verification fetch'
+      );
       return;
     }
 
@@ -113,25 +130,27 @@ const HomeScreen = () => {
     try {
       const [verifications, residents] = await Promise.all([
         getVerifications(),
-        getResidents()
+        getResidents(),
       ]);
       setResidentCount(residents.length);
-      
+
       console.log('Fetched verifications:', verifications.length);
       console.log('Fetched residents:', residents.length);
-      
+
       const recentOnes = verifications
         .sort((a, b) => b.visit_date - a.visit_date)
         .slice(0, 5)
-        .map(verification => {
-          const resident = residents.find(r => r.id === verification.resident_id);
+        .map((verification) => {
+          const resident = residents.find(
+            (r) => r.id === verification.resident_id
+          );
           return {
             ...verification,
             residentName: resident?.full_name,
-            unit: getFirstUnit(resident?.assigned_units)
+            unit: getFirstUnit(resident?.assigned_units),
           };
         });
-      
+
       console.log('Processed recent verifications:', recentOnes.length);
       setRecentVerifications(recentOnes);
     } catch (error) {
@@ -141,14 +160,12 @@ const HomeScreen = () => {
     }
   };
 
-  // Fetch when database is ready
   useEffect(() => {
     if (!dbLoading && !dbError) {
       fetchRecentVerifications();
     }
   }, [dbLoading, dbError]);
 
-  // Refetch when screen comes into focus and database is ready
   useFocusEffect(
     React.useCallback(() => {
       if (!dbLoading && !dbError) {
@@ -158,12 +175,66 @@ const HomeScreen = () => {
     }, [dbLoading, dbError])
   );
 
+  // Helper to render device name with optional ID
+  const renderDeviceName = () => {
+    const deviceName = authState.deviceInfo?.name;
+    const deviceCode = authState.deviceCode;
+
+    if (deviceName && deviceCode) {
+      return (
+        <Text
+          style={[
+            styles.primaryDeviceInfoText,
+            { color: theme.colors.text.primary },
+          ]}
+        >
+          {deviceName}
+          <Text
+            style={[
+              styles.deviceIdText,
+              { color: theme.colors.text.secondary },
+            ]}
+          >
+            {' (ID: '}
+            {deviceCode}
+            {')'}
+          </Text>
+        </Text>
+      );
+    } else if (deviceName || deviceCode) {
+      return (
+        <Text
+          style={[
+            styles.primaryDeviceInfoText,
+            { color: theme.colors.text.primary },
+          ]}
+        >
+          {deviceName || deviceCode}
+        </Text>
+      );
+    } else {
+      return (
+        <Text
+          style={[
+            styles.primaryDeviceInfoText,
+            { color: theme.colors.text.primary },
+          ]}
+        >
+          Device Not Registered
+        </Text>
+      );
+    }
+  };
+
   return (
-    <SafeAreaView 
-      style={[styles.container, { backgroundColor: theme.colors.background.primary }]}
+    <SafeAreaView
+      style={[
+        styles.container,
+        { backgroundColor: theme.colors.background.primary },
+      ]}
     >
       <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
@@ -171,37 +242,51 @@ const HomeScreen = () => {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.welcomeSection}>
-            <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }]}>
+            <Text
+              style={[
+                styles.welcomeTitle,
+                { color: theme.colors.text.primary },
+              ]}
+            >
               Guardy
             </Text>
-            <Text style={[styles.welcomeSubtitle, { color: theme.colors.text.secondary }]}>
+            <Text
+              style={[
+                styles.welcomeSubtitle,
+                { color: theme.colors.text.secondary },
+              ]}
+            >
               Guest Verification Terminal
             </Text>
           </View>
         </View>
 
-         {/* Device & Estate Info Section */}
-        <View style={[styles.sectionContainer, { backgroundColor: theme.colors.background.secondary }]}>
+        {/* Device & Estate Info Section */}
+        <View
+          style={[
+            styles.sectionContainer,
+            { backgroundColor: theme.colors.background.secondary },
+          ]}
+        >
           <View style={styles.deviceInfoTopRow}>
             <View style={styles.deviceInfoMain}>
-              <Text style={[styles.primaryDeviceInfoText, { color: theme.colors.text.primary }]}>
-                <>{/* Explicit fragment wrapping */}
-                  {authState.deviceInfo?.name || authState.deviceCode || 'Device Not Registered'}
-                  {authState.deviceInfo?.name && authState.deviceCode && (
-                    <Text style={[styles.deviceIdText, { color: theme.colors.text.secondary }]}>
-                      {' '}(ID: {authState.deviceCode})
-                    </Text>
-                  )}
-                </>{/* End of explicit fragment wrapping */}
-              </Text>
+              {renderDeviceName()}
               {authState.estateInfo && (
-                <Text style={[styles.estateName, { color: theme.colors.text.secondary, marginTop: 4 }]}>
+                <Text
+                  style={[
+                    styles.estateName,
+                    { color: theme.colors.text.secondary, marginTop: 4 },
+                  ]}
+                >
                   {authState.estateInfo.name}
                 </Text>
               )}
             </View>
             <TouchableOpacity
-              style={[styles.syncButton, { backgroundColor: theme.colors.background.tertiary }]}
+              style={[
+                styles.syncButton,
+                { backgroundColor: theme.colors.background.tertiary },
+              ]}
               onPress={handleSync}
               disabled={syncStatus.isSyncing}
             >
@@ -210,38 +295,59 @@ const HomeScreen = () => {
                 color={theme.colors.primary}
                 style={syncStatus.isSyncing ? styles.rotating : undefined}
               />
-              <Text style={[styles.syncButtonText, { color: theme.colors.primary }]}>
+              <Text
+                style={[styles.syncButtonText, { color: theme.colors.primary }]}
+              >
                 {syncStatus.isSyncing ? 'Syncing...' : 'Sync'}
               </Text>
             </TouchableOpacity>
           </View>
 
           {authState.estateInfo?.address && (
-            <Text style={[styles.estateAddress, { color: theme.colors.text.secondary, marginTop: 8 }]}>
+            <Text
+              style={[
+                styles.estateAddress,
+                { color: theme.colors.text.secondary, marginTop: 8 },
+              ]}
+            >
               {authState.estateInfo.address}
             </Text>
           )}
 
           {/* Resident Count */}
           {authState.estateInfo && residentCount !== null && (
-            <View style={[
-              styles.detailRow,
-              { marginTop: authState.estateInfo?.address ? 4 : 8 }
-            ]}>
+            <View
+              style={[
+                styles.detailRow,
+                { marginTop: authState.estateInfo?.address ? 4 : 8 },
+              ]}
+            >
               <Users size={14} color={theme.colors.text.secondary} />
-              <Text style={[styles.detailText, { color: theme.colors.text.secondary, marginLeft: 6 }]}>
-                {residentCount} Registered Resident{residentCount === 1 ? '' : 's'}
+              <Text
+                style={[
+                  styles.detailText,
+                  { color: theme.colors.text.secondary, marginLeft: 6 },
+                ]}
+              >
+                {residentCount} Registered Resident
+                {residentCount === 1 ? '' : 's'}
               </Text>
             </View>
           )}
-          
-          <Text style={[
-            styles.lastSyncText, 
-            { 
-              color: theme.colors.text.tertiary, 
-              marginTop: (authState.estateInfo?.address || (authState.estateInfo && residentCount !== null)) ? 4 : 8 
-            }
-          ]}>
+
+          <Text
+            style={[
+              styles.lastSyncText,
+              {
+                color: theme.colors.text.tertiary,
+                marginTop:
+                  authState.estateInfo?.address ||
+                  (authState.estateInfo && residentCount !== null)
+                    ? 4
+                    : 8,
+              },
+            ]}
+          >
             {syncStatus.lastSyncTime
               ? `Last synced: ${formatDate(syncStatus.lastSyncTime)}`
               : 'Not synced yet'}
@@ -249,57 +355,113 @@ const HomeScreen = () => {
         </View>
 
         {/* Main Verification Actions */}
-        <View style={[styles.mainActionCard, { backgroundColor: theme.colors.background.secondary }]}>
-          <Text style={[styles.mainActionTitle, { color: theme.colors.text.primary }]}>
+        <View
+          style={[
+            styles.mainActionCard,
+            { backgroundColor: theme.colors.background.secondary },
+          ]}
+        >
+          <Text
+            style={[
+              styles.mainActionTitle,
+              { color: theme.colors.text.primary },
+            ]}
+          >
             Verify Guest Access
           </Text>
-          
+
           <View style={styles.mainButtonsContainer}>
-            <TouchableOpacity 
-              style={[styles.mainActionButton, { backgroundColor: theme.colors.primary }]}
-              onPress={() => navigation.jumpTo('Scanner', { screen: 'EntercodeScreen' })}
+            <TouchableOpacity
+              style={[
+                styles.mainActionButton,
+                { backgroundColor: theme.colors.primary },
+              ]}
+              onPress={() =>
+                navigation.jumpTo('Scanner', { screen: 'EntercodeScreen' })
+              }
             >
               <View style={styles.mainActionIconContainer}>
                 <Keyboard size={36} color={theme.colors.text.inverse} />
               </View>
-              <Text style={[styles.mainActionButtonText, { color: theme.colors.text.inverse }]}>
+              <Text
+                style={[
+                  styles.mainActionButtonText,
+                  { color: theme.colors.text.inverse },
+                ]}
+              >
                 Enter Access Code
               </Text>
-              <ArrowRight size={20} color={theme.colors.text.inverse} style={styles.mainActionArrow} />
+              <ArrowRight
+                size={20}
+                color={theme.colors.text.inverse}
+                style={styles.mainActionArrow}
+              />
             </TouchableOpacity>
-            <TouchableOpacity 
-              style={[styles.mainActionButton, { backgroundColor: theme.colors.background.tertiary }]}
+            <TouchableOpacity
+              style={[
+                styles.mainActionButton,
+                { backgroundColor: theme.colors.background.tertiary },
+              ]}
               onPress={() => navigation.jumpTo('Scanner', { screen: 'ScanQR' })}
             >
               <View style={styles.mainActionIconContainer}>
                 <QrCode size={36} color={theme.colors.primary} />
               </View>
-              <Text style={[styles.mainActionButtonText, { color: theme.colors.text.primary }]}>
+              <Text
+                style={[
+                  styles.mainActionButtonText,
+                  { color: theme.colors.text.primary },
+                ]}
+              >
                 Scan QR Code
               </Text>
-              <ArrowRight size={20} color={theme.colors.primary} style={styles.mainActionArrow} />
+              <ArrowRight
+                size={20}
+                color={theme.colors.primary}
+                style={styles.mainActionArrow}
+              />
             </TouchableOpacity>
-            
-            
           </View>
         </View>
 
         {/* Recent Activity Section */}
-        <View style={[styles.sectionContainer, { backgroundColor: theme.colors.background.secondary }]}>
+        <View
+          style={[
+            styles.sectionContainer,
+            { backgroundColor: theme.colors.background.secondary },
+          ]}
+        >
           <View style={styles.sectionHeader}>
             <View style={styles.sectionTitleContainer}>
-              <Text style={[styles.sectionTitle, { color: theme.colors.text.primary }]}>
+              <Text
+                style={[
+                  styles.sectionTitle,
+                  { color: theme.colors.text.primary },
+                ]}
+              >
                 Recent Activity
               </Text>
-              <Text style={[styles.sectionSubtitle, { color: theme.colors.text.tertiary }]}>
+              <Text
+                style={[
+                  styles.sectionSubtitle,
+                  { color: theme.colors.text.tertiary },
+                ]}
+              >
                 Last 5 verifications
               </Text>
             </View>
-            <TouchableOpacity 
-              style={[styles.viewAllButton, { backgroundColor: theme.colors.background.tertiary }]}
+            <TouchableOpacity
+              style={[
+                styles.viewAllButton,
+                { backgroundColor: theme.colors.background.tertiary },
+              ]}
               onPress={() => navigation.navigate('Logs')}
             >
-              <Text style={[styles.viewAllText, { color: theme.colors.primary }]}>View All</Text>
+              <Text
+                style={[styles.viewAllText, { color: theme.colors.primary }]}
+              >
+                View All
+              </Text>
               <ArrowRight size={16} color={theme.colors.primary} />
             </TouchableOpacity>
           </View>
@@ -307,61 +469,114 @@ const HomeScreen = () => {
           {loading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator color={theme.colors.primary} />
-              <Text style={[styles.loadingText, { color: theme.colors.text.secondary }]}>
+              <Text
+                style={[
+                  styles.loadingText,
+                  { color: theme.colors.text.secondary },
+                ]}
+              >
                 Loading recent verifications...
               </Text>
             </View>
           ) : recentVerifications.length > 0 ? (
             <View style={styles.verificationsList}>
               {recentVerifications.map((verification, index) => (
-                <TouchableOpacity 
-                  key={verification.id} 
+                <TouchableOpacity
+                  key={verification.id}
                   style={[
                     styles.verificationItem,
-                    { 
+                    {
                       backgroundColor: theme.colors.background.primary,
                       borderBottomColor: theme.colors.border,
-                      borderBottomWidth: index === recentVerifications.length - 1 ? 0 : 1
-                    }
+                      borderBottomWidth:
+                        index === recentVerifications.length - 1 ? 0 : 1,
+                    },
                   ]}
-                  onPress={() => console.log('Verification details:', verification)}
+                  onPress={() =>
+                    console.log('Verification details:', verification)
+                  }
                 >
                   <View style={styles.verificationInfo}>
                     <View style={styles.verificationMain}>
-                      <View style={styles.verificationPrimaryInfo}> {/* New wrapper View */}
+                      <View style={styles.verificationPrimaryInfo}>
                         <View style={styles.verificationNameContainer}>
-                          <Text 
-                            style={[styles.verificationName, { color: theme.colors.text.primary }]}
+                          <Text
+                            style={[
+                              styles.verificationName,
+                              { color: theme.colors.text.primary },
+                            ]}
                             numberOfLines={2}
                             ellipsizeMode="tail"
                           >
                             {verification.residentName || 'Unknown Resident'}
                           </Text>
                           {verification.unit ? (
-                            <View style={[styles.unitTag, { backgroundColor: theme.colors.background.tertiary }]}>
-                              <Text style={[styles.unitText, { color: theme.colors.text.secondary }]}>
+                            <View
+                              style={[
+                                styles.unitTag,
+                                {
+                                  backgroundColor:
+                                    theme.colors.background.tertiary,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.unitText,
+                                  { color: theme.colors.text.secondary },
+                                ]}
+                              >
                                 Unit {verification.unit}
                               </Text>
                             </View>
                           ) : null}
                         </View>
-                      </View> {/* End of verificationPrimaryInfo */}
-                      <Text style={[styles.verificationTime, { color: theme.colors.text.secondary }]}>
+                      </View>
+                      <Text
+                        style={[
+                          styles.verificationTime,
+                          { color: theme.colors.text.secondary },
+                        ]}
+                      >
                         {formatRelativeTime(verification.visit_date)}
                       </Text>
                     </View>
                     <View style={styles.verificationDetails}>
-                      <View style={[styles.durationTag, { backgroundColor: theme.colors.background.tertiary }]}>
-                        <Clock size={12} color={theme.colors.primary} style={{ marginRight: 4 }} />
-                        <Text style={[styles.durationText, { color: theme.colors.primary }]}>
+                      <View
+                        style={[
+                          styles.durationTag,
+                          { backgroundColor: theme.colors.background.tertiary },
+                        ]}
+                      >
+                        <Clock
+                          size={12}
+                          color={theme.colors.primary}
+                          style={{ marginRight: 4 }}
+                        />
+                        <Text
+                          style={[
+                            styles.durationText,
+                            { color: theme.colors.primary },
+                          ]}
+                        >
                           {formatDuration(verification.validity_period)}
                         </Text>
                       </View>
                       <View style={styles.codeContainer}>
-                        <Text style={[styles.codeLabel, { color: theme.colors.text.tertiary }]}>
+                        <Text
+                          style={[
+                            styles.codeLabel,
+                            { color: theme.colors.text.tertiary },
+                          ]}
+                        >
                           Code:
                         </Text>
-                        <Text style={[styles.codeValue, { color: theme.colors.text.primary }]}>
+                        <Text
+                          style={[
+                            styles.codeValue,
+                            { color: theme.colors.text.primary },
+                          ]}
+                        >
                           {verification.access_code}
                         </Text>
                       </View>
@@ -371,33 +586,62 @@ const HomeScreen = () => {
               ))}
             </View>
           ) : (
-            <View style={[styles.emptyStateContainer, { backgroundColor: theme.colors.background.primary }]}>
-              <View style={[styles.emptyStateIcon, { backgroundColor: theme.colors.background.tertiary }]}>
+            <View
+              style={[
+                styles.emptyStateContainer,
+                { backgroundColor: theme.colors.background.primary },
+              ]}
+            >
+              <View
+                style={[
+                  styles.emptyStateIcon,
+                  { backgroundColor: theme.colors.background.tertiary },
+                ]}
+              >
                 <Info size={24} color={theme.colors.primary} />
               </View>
-              <Text style={[styles.emptyStateTitle, { color: theme.colors.text.primary }]}>
+              <Text
+                style={[
+                  styles.emptyStateTitle,
+                  { color: theme.colors.text.primary },
+                ]}
+              >
                 No Recent Activity
               </Text>
-              <Text style={[styles.emptyStateText, { color: theme.colors.text.secondary }]}>
+              <Text
+                style={[
+                  styles.emptyStateText,
+                  { color: theme.colors.text.secondary },
+                ]}
+              >
                 Your recent verifications will appear here
               </Text>
             </View>
           )}
         </View>
 
-       
         {/* Help Section */}
-        <TouchableOpacity 
-          style={[styles.helpSection, { backgroundColor: theme.colors.background.secondary }]}
+        <TouchableOpacity
+          style={[
+            styles.helpSection,
+            { backgroundColor: theme.colors.background.secondary },
+          ]}
           onPress={() => navigation.navigate('Settings')}
         >
           <View style={styles.helpContent}>
             <Info size={20} color={theme.colors.primary} />
             <View style={styles.helpTextContainer}>
-              <Text style={[styles.helpTitle, { color: theme.colors.text.primary }]}>
+              <Text
+                style={[styles.helpTitle, { color: theme.colors.text.primary }]}
+              >
                 Need Help?
               </Text>
-              <Text style={[styles.helpText, { color: theme.colors.text.secondary }]}>
+              <Text
+                style={[
+                  styles.helpText,
+                  { color: theme.colors.text.secondary },
+                ]}
+              >
                 Contact support through settings
               </Text>
             </View>
@@ -561,7 +805,7 @@ const styles = StyleSheet.create({
   verificationDetails: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between', // Changed from gap: 12
+    justifyContent: 'space-between',
     marginTop: 4,
   },
   durationTag: {
@@ -589,9 +833,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Poppins-Medium',
     letterSpacing: 0.5,
   },
-  verificationPrimaryInfo: { // New style
+  verificationPrimaryInfo: {
     flex: 1,
-    marginRight: 8, // Space between name/unit block and time
+    marginRight: 8,
   },
   emptyStateContainer: {
     alignItems: 'center',
@@ -627,10 +871,9 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
-  primaryDeviceInfoText: { // Renamed from deviceId, now includes secondary info
+  primaryDeviceInfoText: {
     fontSize: 18,
     fontFamily: 'Poppins-SemiBold',
-    // marginBottom: 2, // Removed, spacing handled by elements below or their own marginTop
   },
   deviceIdText: {
     fontSize: 14,
@@ -647,12 +890,10 @@ const styles = StyleSheet.create({
   estateName: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
-    // marginTop is now applied inline dynamically
   },
   estateAddress: {
     fontSize: 14,
     fontFamily: 'Poppins-Regular',
-    // marginBottom: 8, // Removed to use consistent marginTop logic
   },
   syncButton: {
     flexDirection: 'row',
@@ -660,7 +901,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 8,
-    // marginBottom: 16, // Removed to align with new layout
   },
   syncButtonText: {
     fontSize: 16,

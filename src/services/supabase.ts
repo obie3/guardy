@@ -27,9 +27,19 @@ const FINAL_SUPABASE_URL = SUPABASE_URL || process.env.SUPABASE_URL;
 const FINAL_SUPABASE_ANON_KEY =
   SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
 
+console.log('FINAL_SUPABASE_ANON_KEY ======>XXXXX: ', process.env.SUPABASE_URL);
+
+console.log('FINAL_SUPABASE_URL ======>XXXXX: ', SUPABASE_ANON_KEY);
+
 if (!FINAL_SUPABASE_URL || !FINAL_SUPABASE_ANON_KEY) {
   throw new Error('Supabase URL and Anon Key must be defined');
 }
+
+console.log('Supabase URL:', FINAL_SUPABASE_URL);
+console.log(
+  'Supabase Anon Key:',
+  FINAL_SUPABASE_ANON_KEY.replace(/.(?=.{4})/g, '*')
+); // Mask all but last 4 chars
 
 // Create Supabase client
 export const supabase = createClient(

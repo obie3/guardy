@@ -2,7 +2,7 @@ import { Resident } from '../types/database';
 import { TokenPeriod, VerificationResult, Visit } from '../types/verification';
 import base32Decode from 'base32-decode';
 import base32Encode from 'base32-encode';
-import { TOTP } from 'totp-generator';
+import { generateTOTP } from '../utils/totp';
 
 /**
  * Appends visitor ID to base32 secret for enhanced security
@@ -86,7 +86,9 @@ export const verifyTOTP = async (
             algorithm: 'SHA-256' as const,
           };
 
-          const { otp } = TOTP.generate(testSecret, totpOptions);
+          //const { TOTP } = OTPAuth;
+          const otp = await generateTOTP(testSecret, totpOptions);
+          // const { otp } = TOTP.generate(testSecret, totpOptions);
           console.log(`Generated OTP: ${otp}`);
 
           if (otp === token) {
