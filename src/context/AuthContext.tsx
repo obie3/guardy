@@ -8,9 +8,8 @@ import React, {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
-import { verifyDeviceCode } from '../services/supabase';
+import { verifyDeviceCode, supabaseRest, User } from '../services/supabaseRest';
 import { AuthDevice, Estate } from '../types/database';
-import { supabase } from '../services/supabase';
 import { useSync } from './SyncContext';
 
 // Define auth state type
@@ -142,7 +141,7 @@ export const AuthProvider = ({
 
       if (result.success && result.device) {
         // Fetch estate information
-        const { data: estate, error: estateError } = await supabase
+        const { data: estate, error: estateError } = await supabaseRest
           .from('estates')
           .select('*')
           .eq('id', result.device.estate_id)

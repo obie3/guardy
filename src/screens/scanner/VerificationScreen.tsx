@@ -29,7 +29,7 @@ import { useSync } from '../../context/SyncContext';
 import { useAuth } from '../../context/AuthContext';
 import { verifyTOTP } from '../../services/verification';
 import { VerificationResult } from '../../types/verification';
-import { fetchGuestInformation, GuestInfo } from '../../services/supabase';
+import { fetchGuestInformation, GuestInfo } from '../../services/supabaseRest';
 import { GuestInfoCard } from '../../components/common/GuestInfoCard';
 
 type VerificationScreenNavigationProp = CompositeNavigationProp<

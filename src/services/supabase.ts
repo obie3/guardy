@@ -31,7 +31,7 @@ if (!FINAL_SUPABASE_URL || !FINAL_SUPABASE_ANON_KEY) {
   throw new Error('Supabase URL and Anon Key must be defined');
 }
 
-// Create Supabase client
+// Create Supabase client without realtime to avoid React Native compatibility issues
 export const supabase = createClient(
   FINAL_SUPABASE_URL,
   FINAL_SUPABASE_ANON_KEY,
@@ -57,6 +57,11 @@ export const supabase = createClient(
   }
 );
 
+// Remove realtime channel to prevent WebSocket initialization
+if (supabase.realtime) {
+  supabase.realtime.disconnect();
+}
+
 // Helper function to check if Supabase connection is working
 export const testSupabaseConnection = async (): Promise<boolean> => {
   try {
@@ -74,7 +79,7 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
           pingError.message.includes('Failed to fetch') ||
           pingError.message.includes('Aborted'))
       ) {
-        console.error('Network connectivity issue detected');
+        console.error('Network connectivity isasue detected');
       }
 
       return false;
@@ -314,7 +319,7 @@ export const fetchGuestInformation = async (
       };
     }
 
-    const response = data as SupabaseGuestResponse;
+    const response = data as any;
     if (!response.guest || typeof response.guest !== 'object') {
       return {
         success: false,

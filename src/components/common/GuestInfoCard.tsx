@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { GuestInfo } from '../../services/supabase';
+import { GuestInfo } from '../../services/supabaseRest';
 import { useTheme } from '../../context/ThemeContext';
 import { Users, AlertCircle, Phone, User } from 'lucide-react-native';
 
