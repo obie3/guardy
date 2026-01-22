@@ -1,6 +1,7 @@
 import 'react-native-url-polyfill/auto';
 import 'react-native-get-random-values';
-import { createClient } from '@supabase/supabase-js';
+// import { createClient } from '@supabase/supabase-js';
+import { createClient, processLock } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@env';
 import { AuthDevice } from '../types/database';
@@ -35,13 +36,7 @@ if (!FINAL_SUPABASE_URL || !FINAL_SUPABASE_ANON_KEY) {
   throw new Error('Supabase URL and Anon Key must be defined');
 }
 
-console.log('Supabase URL:', FINAL_SUPABASE_URL);
-console.log(
-  'Supabase Anon Key:',
-  FINAL_SUPABASE_ANON_KEY.replace(/.(?=.{4})/g, '*')
-); // Mask all but last 4 chars
-
-// Create Supabase client
+// Create Supabase client without realtime to avoid React Native compatibility issues
 export const supabase = createClient(
   FINAL_SUPABASE_URL,
   FINAL_SUPABASE_ANON_KEY,
@@ -50,7 +45,7 @@ export const supabase = createClient(
       storage: createCustomStorage(),
       autoRefreshToken: true,
       persistSession: true,
-      detectSessionInUrl: false,
+      detectSessionInUrl: true,
     },
     global: {
       fetch: (url, options) => {
@@ -66,6 +61,11 @@ export const supabase = createClient(
     },
   }
 );
+
+// Remove realtime channel to prevent WebSocket initialization
+if (supabase.realtime) {
+  supabase.realtime.disconnect();
+}
 
 // Helper function to check if Supabase connection is working
 export const testSupabaseConnection = async (): Promise<boolean> => {
@@ -84,7 +84,7 @@ export const testSupabaseConnection = async (): Promise<boolean> => {
           pingError.message.includes('Failed to fetch') ||
           pingError.message.includes('Aborted'))
       ) {
-        console.error('Network connectivity issue detected');
+        console.error('Network connectivity isasue detected');
       }
 
       return false;
@@ -324,7 +324,7 @@ export const fetchGuestInformation = async (
       };
     }
 
-    const response = data as SupabaseGuestResponse;
+    const response = data as any;
     if (!response.guest || typeof response.guest !== 'object') {
       return {
         success: false,

@@ -1,0 +1,38 @@
+# guardy
+
+A React application scaffold. This repository contains the source for "enntry" — a frontend React project ready for local development, testing, and production builds.
+
+## Features
+
+- React-based UI
+- Standard scripts for development, testing, linting and building
+- Opinionated folder structure to keep components, hooks, and assets organized
+
+## Requirements
+
+- Node.js >= 16
+- npm >= 8 or yarn >= 1.22
+
+## Quick start
+
+1. Clone the repo
+2. Install dependencies
+   - npm: `npm install`
+   - yarn: `yarn`
+3. Start dev server
+   - npm: `npm start` or `npm run dev`
+   - yarn: `yarn start` or `yarn dev`
+
+## Available scripts
+
+- `start` / `dev` — Run the app in development mode with hot reloading.
+- `build` — Create an optimized production build.
+- `test` — Run unit tests (Jest/React Testing Library or configured test runner).
+- `lint` — Run linters (ESLint, etc.).
+- `format` — Apply code formatting (Prettier).
+
+Adjust script names to match the project's package.json.
+
+## Environment
+
+Place environment variables in a `.env` file at the project root. Example:

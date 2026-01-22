@@ -7,7 +7,7 @@ import React, {
   useRef,
 } from 'react';
 import { useDatabase } from './DatabaseContext';
-import { supabase } from '../services/supabase';
+import { supabaseRest } from '../services/supabaseRest';
 import { Resident, AuthDevice } from '../types/database';
 import NetInfo from '@react-native-community/netinfo';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -134,17 +134,25 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
       }
       console.log('Network connected, proceeding with sync');
 
-      // Fetch residents from Supabase
-      const { data: residents, error } = await supabase.rpc(
-        'get_estate_residents',
+      // Fetch residents from Supabase using RPC call
+      const response = await fetch(
+        `${process.env.SUPABASE_URL}/rest/v1/rpc/get_estate_residents`,
         {
-          device_id: estateId,
+          method: 'POST',
+          headers: {
+            apikey: process.env.SUPABASE_ANON_KEY || '',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ device_id: estateId }),
         }
       );
-      console.log('Fetched residents from server:', residents + estateId);
 
-      if (error) throw error.stack || error.message;
-      console.log('Residents data received:', residents);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to fetch residents');
+      }
+
+      const residents = await response.json();
 
       if (!residents) {
         throw new Error('No residents data received');
@@ -302,7 +310,6 @@ export const SyncProvider = ({ children }: { children: ReactNode }) => {
     backgroundSync,
     forceSyncNow,
   };
-
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;
 };
 

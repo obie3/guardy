@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { supabase } from '../../services/supabase';
+import { supabaseRest } from '../../services/supabaseRest';
 import { useTheme } from '../../context/ThemeContext';
 import { AuthStackParamList } from '../../types/navigation';
 import * as yup from 'yup';
@@ -63,7 +63,7 @@ const ForgotPasswordScreen = () => {
 
     setLoading(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email);
+      const { error } = await supabaseRest.auth.resetPasswordForEmail(email);
       
       if (error) {
         Alert.alert('Error', error.message);

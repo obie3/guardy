@@ -40,7 +40,7 @@ const appendVisitorId = (secret: string, visitorId: string): string => {
   const visitorByte = new Uint8Array([parseInt(numericId, 10)]);
   console.log('[totpUtils.ts] visitorByte:', visitorByte);
 
-  // Combine the secret bytes with the visitor ID byte
+  // Combine the secret bytes with the visitor ID byten
   const combinedBytes = new Uint8Array(secretBytes.length + 1);
   combinedBytes.set(secretBytes);
   combinedBytes.set(visitorByte, secretBytes.length);

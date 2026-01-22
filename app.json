@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "guardy",
-    "slug": "guardy",
+    "name": "Enntry",
+    "slug": "Enntry",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "guardy",
+    "scheme": "Enntry",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.edwardobande36.boltexponativewind"
     },
     "web": {
       "bundler": "metro",
@@ -17,7 +18,6 @@
     },
     "plugins": [
       "expo-secure-store",
-      "expo-barcode-scanner",
       "expo-sqlite",
       "expo-font",
       "expo-web-browser"
@@ -27,11 +27,14 @@
     },
     "extra": {
       "eas": {
-        "projectId": "7bf78feb-e191-4ab7-bd39-a14ed09b72a5"
+        "projectId": "c1673792-7308-43de-9e72-86e917b32a09"
       }
     },
     "android": {
-      "package": "com.edwardobande36.boltexponativewind"
+      "package": "com.edwardobande36.boltexponativewind",
+      "permissions": [
+        "android.permission.CAMERA"
+      ]
     }
   }
 }

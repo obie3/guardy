@@ -242,13 +242,8 @@ const HomeScreen = () => {
         {/* Header Section */}
         <View style={styles.header}>
           <View style={styles.welcomeSection}>
-            <Text
-              style={[
-                styles.welcomeTitle,
-                { color: theme.colors.text.primary },
-              ]}
-            >
-              Guardy
+            <Text style={[styles.welcomeTitle, { color: theme.colors.text.primary }]}>
+              Enntry
             </Text>
             <Text
               style={[
