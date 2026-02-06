@@ -13,7 +13,9 @@
     "test": "jest",
     "start:development": "NODE_ENV=development npx react-native start",
     "start:production": "NODE_ENV=production npx react-native start",
-    "postinstall": "patch-package"
+    "postinstall": "patch-package",
+    "android:local": "eas build --platform android --profile production --local",
+    "android:build": "eas build --platform android --profile production"
   },
   "overrides": {
     "event-target-shim": "5.0.1"

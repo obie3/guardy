@@ -24,28 +24,28 @@ export default function App() {
     'Poppins-Bold': require('../assets/fonts/Poppins-Bold.ttf'),
   });
 
-  useEffect(() => {
-    async function prepare() {
-      try {
-        // Any initialization logic goes here
-        // e.g., loading resources, initializing databases, etc.
-      } catch (e) {
-        console.warn('Error initializing app:', e);
-      } finally {
-        // When everything is ready, notify the app
-        setAppIsReady(true);
-      }
-    }
+  // useEffect(() => {
+  //   async function prepare() {
+  //     try {
+  //       // Any initialization logic goes here
+  //       // e.g., loading resources, initializing databases, etc.
+  //     } catch (e) {
+  //       console.warn('Error initializing app:', e);
+  //     } finally {
+  //       // When everything is ready, notify the app
+  //       // setAppIsReady(true);
+  //     }
+  //   }
 
-    prepare();
-  }, []);
+  //   prepare();
+  // }, []);
 
   useEffect(() => {
-    if ((fontsLoaded || fontError) && appIsReady) {
+    if (fontsLoaded || fontError) {
       // Hide splash screen when everything is ready
       SplashScreen.hideAsync();
     }
-  }, [fontsLoaded, fontError, appIsReady]);
+  }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) {
     return null;

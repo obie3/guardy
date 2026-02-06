@@ -9,7 +9,12 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.edwardobande36.boltexponativewind"
+      "bundleIdentifier": "com.enntry.www"
+    },
+    "splash": {
+      "image": "./assets/images/enntry-splash-screen.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
     },
     "web": {
       "bundler": "metro",
@@ -20,21 +25,34 @@
       "expo-secure-store",
       "expo-sqlite",
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/images/enntry-splash-screen.png",
+          "dark": {
+            "image": "./assets/images/enntry-splash-screen.png",
+            "backgroundColor": "#000000"
+          },
+          "imageWidth": 200
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
       "eas": {
-        "projectId": "c1673792-7308-43de-9e72-86e917b32a09"
+        "projectId": "1557f95a-60eb-4bd3-acf1-84940827b82a"
       }
     },
     "android": {
-      "package": "com.edwardobande36.boltexponativewind",
+      "package": "com.enntry.www",
       "permissions": [
         "android.permission.CAMERA"
       ]
-    }
+    },
+    "owner": "edwardobande36"
   }
 }
