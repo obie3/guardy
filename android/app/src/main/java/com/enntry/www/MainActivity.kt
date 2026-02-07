@@ -1,4 +1,4 @@
-package com.edwardobande36.boltexponativewind
+package com.enntry.www
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
